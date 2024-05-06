@@ -1,4 +1,3 @@
-```markdown
 # Predicting Fraudulent Transactions Using Binary Classification Algorithms
 
 **Team Member:** Giorgos Tzimas  
@@ -307,4 +306,3 @@ Out of the two classification models, Random Forest performed better with a reca
 
 ## References
 1. [Capital One Data Scientist Recruiting](https://github.com/CapitalOneRecruiting/DS)
-```
