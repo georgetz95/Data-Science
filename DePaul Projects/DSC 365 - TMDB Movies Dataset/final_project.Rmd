@@ -1,0 +1,53 @@
+---
+title: "Untitled"
+author: "George Tzimas"
+date: "2024-03-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(ggridges)
+library(ggthemes)
+library(vcd)
+library(ggmosaic)
+```
+
+
+```{r}
+df <- read.csv('movies_complete_03182024.csv')
+df$release_date <- as.POSIXct(df$release_date, format='%Y-%m-%d')
+head(df)
+```
+
+```{r}
+df %>% 
+  filter(release_date >= as.Date("2001-01-01") & release_date <= "2015-12-31") %>%
+  mutate(PrimaryGenre = case_when(
+    PrimaryGenre %in% c("Action", "Adventure", "Comedy", "Animation", "Drama") ~ PrimaryGenre,
+    TRUE ~ "Other")) %>% 
+  select(PrimaryGenre, release_year) %>% table %>%
+  vcd::mosaic(highlighting = "PrimaryGenre", highlighting_fill = c("Action" = "#1F618D", "Adventure" = "#E9901E", "Comedy" = "#C63C2B",
+                        "Animation" = "#8329E8", "Drama" = "#27C8CD", "Other" = "grey"), rot_labels=c(45, 0),set_varnames = c(PrimaryGenre = "", release_year = ""))
+```
+
+```{r}
+df %>% 
+  filter(release_date >= as.Date("2001-01-01") & release_date <= "2015-12-31") %>%
+  mutate(PrimaryGenre = case_when(
+    PrimaryGenre %in% c("Action", "Adventure", "Comedy", "Animation", "Drama") ~ PrimaryGenre,
+    TRUE ~ "Other")) %>% 
+  mutate(Genre=PrimaryGenre, Year=release_year) %>%
+  select(Genre, Year) %>% 
+  table() %>%
+  vcd::mosaic(highlighting = "Genre", highlighting_fill = c("Action" = "#1F618D", "Adventure" = "#E9901E", "Comedy" = "#C63C2B",
+                        "Animation" = "#8329E8", "Drama" = "#27C8CD", "Other" = "grey"),labeling = labeling_border(rot_labels = c(0,0), 
+                                  offset_label =c(.5,.5,0, 0),
+                                  varnames = c(TRUE, TRUE),
+                                  just_labels=c("center","right"),
+                                  tl_varnames = FALSE),
+       legend = FALSE)
+```
+
