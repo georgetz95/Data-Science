@@ -1,0 +1,779 @@
+\lstset{style=pythonstyle}
+\begin{lstlisting}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import ast
+import json
+from scipy import stats
+import requests
+from IPython.display import HTML, display
+
+pd.set_option('display.max_columns', None)
+\end{lstlisting}
+
+\begin{lstlisting}
+PATH = '/media/georgetz/jupyter/Desktop/Classes/Winter 2024/DSC 365 - Data Visualization/Final Project'
+os.chdir(PATH)
+\end{lstlisting}
+
+\begin{lstlisting}
+movies = pd.read_csv(os.path.join(PATH, 'tmdb_5000_movies.csv'))
+print(f"Shape: {movies.shape}")
+movies.head()
+\end{lstlisting}
+
+\begin{lstlisting}
+credits = pd.read_csv(os.path.join(PATH, 'tmdb_5000_credits.csv'))
+print(f"Shape: {credits.shape}")
+credits.head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df = pd.merge(movies, credits, on='title')
+print(f"Shape: {df.shape}")
+df.head()
+\end{lstlisting}
+
+\begin{lstlisting}
+def convert(obj):
+    L = []
+    for i in json.loads(obj):
+        L.append(i["name"])
+    return L
+
+df["genres"] = df["genres"].apply(convert)
+df["keywords"] = df["keywords"].apply(convert)
+df['PrimaryGenre'] = df['genres'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>=1 else None)
+df.head()
+\end{lstlisting}
+
+\begin{lstlisting}
+def update_cast(key: str, value: int):
+    def inner_function(json_string: str):
+        result = []
+        for item in ast.literal_eval(json_string):
+            if item[key] <= value:
+                result.append(item['name'].strip())
+        return result
+    return inner_function
+\end{lstlisting}
+
+\begin{lstlisting}
+df['cast'] = df['cast'].apply(update_cast('order', value=5))
+df['cast'].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+def update_crew(key: str, values: List[str]):
+    def inner_function(json_string: str):
+        result = []
+        for item in ast.literal_eval(json_string):
+            if item[key] in values:
+                result.append(item['name'].strip())
+        return result
+    return inner_function
+\end{lstlisting}
+
+\begin{lstlisting}
+df['Directors'] = df['crew'].apply(update_crew('job', values=['Director']))
+df['PrimaryDirector'] = df['Directors'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>=1 else None)
+df[['Directors', 'PrimaryDirector']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['Producers'] = df['crew'].apply(update_crew('job', values=['Producer']))
+df['PrimaryProducer'] = df['Producers'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>=1 else None)
+df[['Producers', 'PrimaryProducer']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['crew'] = df['crew'].apply(update_crew('job', values=['Screenplay', 'Producer', 'Editor', 'Writer', 'Director']))
+df['crew'].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+def update_production_companies(key: str):
+    def inner_function(json_string: str):
+        result = []
+        for item in ast.literal_eval(json_string):
+            if item[key] <= value:
+                result.append(item['name'].strip())
+        return result
+    return inner_function
+\end{lstlisting}
+
+\begin{lstlisting}
+df['production_companies'] = df.production_companies.apply(lambda x: [i['name'] for i in ast.literal_eval(x)])
+df['PrimaryProductionCompany'] = df['production_companies'].apply(lambda x: x[0]  if len(x) > 0 else None)
+df[['production_companies', 'PrimaryProductionCompany']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['spoken_languages'] = df.spoken_languages.apply(lambda x: [i['name'] for i in ast.literal_eval(x)] )
+df['production_countries'] = df.production_countries.apply(lambda x: [i['name'] for i in ast.literal_eval(x)] )
+df['PrimaryProductionCountry'] = df['production_countries'].apply(lambda x: x[0] if  len(x) > 0 else None)
+df[['production_countries', 'PrimaryProductionCountry']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+for coli in df.columns:
+    df[coli].replace('[]', np.nan, inplace=True)
+df.budget.replace(0, np.nan, inplace=True)
+df.revenue.replace(0, np.nan, inplace=True)
+df.release_date = pd.to_datetime(df.release_date)
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_season(dates):
+    seasons = {'spring': (3, 1), 'summer': (6, 1), 'autumn': (9, 1), 'winter': (12, 1)}
+    
+    month_to_season = {}
+    for season, (start_month, _) in seasons.items():
+        if season == 'winter':
+            month_to_season[1] = month_to_season[2] = month_to_season[12] = season
+        elif season == 'spring':
+            month_to_season[3] = month_to_season[4] = month_to_season[5] = season
+        elif season == 'summer':
+            month_to_season[6] = month_to_season[7] = month_to_season[8] = season
+        elif season == 'autumn':
+            month_to_season[9] = month_to_season[10] = month_to_season[11] = season
+            
+    
+    return dates.map(lambda x: month_to_season.get(x.month, 'unknown') if pd.notna(x) else np.nan)
+
+df['release_year'] = df.release_date.dt.year
+df['release_month'] = df.release_date.dt.strftime('%B')
+df['release_season'] = get_season(df.release_date)
+df[['release_date', 'release_year', 'release_month', 'release_season']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['cast'] = df['cast'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['crew'] = df['crew'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['Directors'] = df['Directors'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['Producers'] = df['Producers'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['genres'] = df['genres'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['keywords'] = df['keywords'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['production_companies'] = df['production_companies'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['production_countries'] = df['production_countries'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+df['spoken_languages'] = df['spoken_languages'].apply(lambda x: ast.literal_eval(x) if x is not np.nan else np.nan)
+\end{lstlisting}
+
+\begin{lstlisting}
+lead_actor_gender = pd.Series(credits.cast.apply(lambda x: x[0]['gender'] if len(x) != 0 else np.nan).map({1: 'Female', 2: 'Male'}), name='LeadActorGender')
+df = pd.merge(df, pd.concat([credits.movie_id, lead_actor_gender], axis=1), left_on='id', right_on='movie_id').drop(columns='movie_id_y')
+df['release_date'] = pd.to_datetime(df['release_date'])
+df.head()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['MovieProfited'] = df.profit.apply(lambda x: x > 0)
+df[['budget', 'revenue', 'profit', 'MovieProfited']].head()
+\end{lstlisting}
+
+\begin{lstlisting}
+def assign_decade(year):
+    if 1910 <= year < 1960:
+        return '1910-1950'
+    elif 1960 <= year < 2000:
+        return str(year // 10 * 10)
+    elif year >= 2000:  
+        return str(year // 10 * 10)
+    else:
+        return np.nan
+
+df['DecadeBin'] = df['release_date'].dt.year.apply(assign_decade)
+\end{lstlisting}
+
+\begin{lstlisting}
+def adjust_currency(amount, date):
+    if amount is not np.nan and type(date) != pd._libs.tslibs.nattype.NaTType:
+        adjusted_revenue = cpi.inflate(amount, date.year)
+        return adjusted_revenue
+    else:
+        return np.nan
+
+df['revenue_adj'] = df.apply(lambda x: adjust_currency(x['revenue'], x['release_date']), axis=1)
+df['budget_adj'] = df.apply(lambda x: adjust_currency(x['budget'], x['release_date']), axis=1)
+df['profit_adj'] = df.apply(lambda x: adjust_currency(x['profit'], x['release_date']), axis=1)
+\end{lstlisting}
+
+\begin{lstlisting}
+rating_mapping = {
+    'R': 'R',
+    'PG-13': 'PG-13',
+    'PG': 'PG',
+    'Not Rated': 'Unrated',
+    'G': 'G',  
+    'Unrated': 'Unrated',  
+    'Approved': 'PG',
+    'Passed': 'PG',
+    'TV-MA': 'TV-MA',
+    'NC-17': 'TV-MA',
+    'TV-14': 'PG-13',
+    'TV-G': 'G',
+    'TV-PG': 'PG',
+    'GP': 'PG',
+    'M/PG': 'PG-13',
+    'X': 'TV-MA',
+    'M': 'PG',
+    '13+': 'PG-13',
+    '18+': 'TV-MA'
+}
+df['RatedUpdated'] = df.Rated.map(rating_mapping)
+df['RatedUpdated'].value_counts(dropna=False)
+\end{lstlisting}
+
+\begin{lstlisting}
+API_KEY = '##########'
+
+def get_budget(movie_id, api_key=API_KEY):
+    url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}'
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        budget = data['budget']
+        if budget == 0:
+            return np.nan
+        return budget
+    else:
+        return np.nan
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_budget(movie_id, api_key=API_KEY):
+    url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}'
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        budget = data['budget']
+        if budget == 0:
+            return np.nan
+        return budget
+    else:
+        return np.nan
+
+missing_budget_indices = df[df.budget.isna()].index
+for i in missing_budget_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'budget'] = get_budget(movieid)
+    except:
+        print(i)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_revenue(movie_id, api_key=API_KEY):
+    url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}'
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        revenue = data['revenue']
+        if revenue == 0:
+            return np.nan
+        return revenue
+    else:
+        return np.nan
+
+missing_revenue_indices = df[df.revenue.isna()].index
+for i in missing_revenue_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'revenue'] = get_revenue(movieid)
+    except:
+        print(i)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_producers(movie_id, api_key=API_KEY):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/credits?api_key={api_key}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        producers = [member['name'] for member in data['crew'] if member['job'] == 'Producer']
+        if len(producers) == 0:
+            return np.nan
+        return str(producers)
+    else:
+        return np.nan
+
+missing_producer_indices = df[df.Producers.isna()].index
+for i in missing_producer_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'Producers'] = get_producers(movieid)
+    except:
+        print(i)
+        print(movieid)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_tagline(movie_id, api_key=API_KEY):
+    url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}'
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        tagline = data['tagline']
+        if tagline is not np.nan:
+            if len(tagline) == 0:
+                return np.nan
+        return tagline
+    else:
+        return np.nan
+
+missing_tagline_indices = df[df.tagline.isna()].index
+for i in missing_tagline_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'tagline'] = get_tagline(movieid)
+    except:
+        print(i)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_production_companies(movie_id, api_key=API_KEY):
+    # Accessing the main movie details endpoint
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        # Extracting production companies
+        production_companies = [company['name'] for company in data.get('production_companies', [])]
+        
+        if not production_companies:
+            return np.nan
+        return str(production_companies)
+    else:
+        return np.nan
+
+missing_production_companies_indices = df[df.production_companies.isna()].index
+for i in missing_production_companies_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'production_companies'] = get_production_companies(movieid)
+    except:
+        print(i)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+def get_production_countries(movie_id, api_key=API_KEY):
+    # Accessing the main movie details endpoint
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        # Extracting production companies
+        production_countries = [company['name'] for company in data.get('production_countries', [])]
+        
+        if not production_countries:
+            return np.nan
+        return str(production_countries)
+    else:
+        return np.nan
+
+missing_production_countries_indices = df[df.production_countries.isna()].index
+for i in missing_production_countries_indices:
+    movieid = df.loc[i, 'id']
+    try:
+        df.loc[i, 'production_countries'] = get_production_countries(movieid)
+    except:
+        print(i)
+        break
+\end{lstlisting}
+
+\begin{lstlisting}
+headers = headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlYzYxOWZiMzgzMDcxMmUzNzY3ZTc1ODI4OThhODU5MiIsInN1YiI6IjYwOTQ0MmRhMDIzMWYyMDA3OWVkYzRmOSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.zhJcEIpbNKItZyiRAWcJ9QvCXA59reAmEg2GZ9jQmqE"
+}
+def get_num_services(movie_id, headers=headers):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/watch/providers"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()['results']
+        stream_services = set()
+        rent_services = set()
+        buy_services = set()
+        for countryi in data.keys():
+            stream_services.update([i['provider_id'] for i in data[countryi].get('flatrate', [])])
+            rent_services.update([i['provider_id'] for i in data[countryi].get('rent', [])])
+            buy_services.update([i['provider_id'] for i in data[countryi].get('buy', [])])
+            
+        return len(list(stream_services)), len(list(rent_services)), len(list(buy_services))
+    else:
+        return np.nan, np.nan, np.nan
+
+num_stream_services, num_rent_services, num_buy_services = list(), list(), list()
+for idi in df.id:
+    results = get_num_services(idi)
+    num_stream_services.append(results[0])
+    num_rent_services.append(results[1])
+    num_buy_services.append(results[2])
+
+df['NoStreamProviders'] = num_stream_services
+df['NoRentProviders'] = num_rent_services
+df['NoBuyProviders'] = num_buy_services
+\end{lstlisting}
+
+\begin{lstlisting}
+headers = headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlYzYxOWZiMzgzMDcxMmUzNzY3ZTc1ODI4OThhODU5MiIsInN1YiI6IjYwOTQ0MmRhMDIzMWYyMDA3OWVkYzRmOSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.zhJcEIpbNKItZyiRAWcJ9QvCXA59reAmEg2GZ9jQmqE"
+}
+def get_num_providers(movie_id, headers=headers):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/watch/providers"
+    response = requests.get(url, headers=headers)
+    num_providers = set()
+    if response.status_code == 200:
+        data = response.json()['results']
+        num_countries = list(data.keys())
+        for key in num_countries:
+            for typei in ['buy', 'rent', 'flatrate']:
+                ids = [i['provider_id'] for i in data[key].get(typei, [])]
+                num_providers.update(ids)
+        return len(num_providers), len(num_countries)
+    else:
+        return np.nan, np.nan
+
+
+num_global_providers = list()
+num_countries = list()
+for idi in df.id:
+    result = get_num_providers(idi)
+    num_global_providers.append(result[0])
+    num_countries.append(result[1])
+
+df['NoTotalProviders'] = num_global_providers
+df['NoCountriesAvailable'] = num_countries
+\end{lstlisting}
+
+\begin{lstlisting}
+df.isnull().sum().sort_values(ascending=False)
+
+tmp = df.groupby('PrimaryGenre')['revenue'].mean().sort_values()
+tmp = tmp / 1000000
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_xlabel('Revenue (in millions of dollars)', fontsize=12)
+ax.set_ylabel('Genre', fontsize=12)
+ax.set_title('Average Revenue by Movie Genre', fontsize=18)
+fig.savefig('mean_revenue_by_genre.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+numeric_features = df.select_dtypes(exclude='object').drop(columns=['id', 'movie_id', 'release_date']).columns.to_list()
+print(len(numeric_features))
+print(numeric_features)
+
+fig, ax = plt.subplots(3, 2, figsize=(8,8))
+for coli, axi in zip(numeric_features, ax.ravel()):
+    skew = stats.skew(df[coli], nan_policy='omit')
+    sns.histplot(df[coli], kde=True, ax=axi, label=f"Skew= {np.round(skew, 2)}")
+    axi.set_title(coli.capitalize(), fontsize=12)
+    axi.set_xlabel('')
+    axi.legend()
+    
+fig.suptitle('Distribution of Numerical Features', fontsize=18)
+fig.tight_layout()
+fig.savefig('numeric_distributions.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['HTML_Poster'] = df['Poster'].apply(lambda x: f'<img src="{x}"/>')
+df['HTML_Poster_100px'] = df['Poster'].apply(lambda x: f'<img src="{x}" width="100"/>')
+HTML(df[['HTML_Poster_100px', 'title', 'budget', 'revenue']].head().to_html(escape=False))
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df.PrimaryGenre.value_counts().sort_values()
+
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_title('Count of Movie Genres', fontsize=16)
+ax.set_xlabel('Count', fontsize=12)
+ax.set_ylabel('Genre', fontsize=12)
+fig.savefig('count_movie_genres.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+df['LeadActor'] = df.cast.apply(lambda x: x[0] if x is not np.nan else np.nan)
+
+tmp = df.LeadActor.value_counts().sort_values()[-15:]
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_title('Most Common Lead Actors in a Movie', fontsize=16)
+ax.set_xlabel('Count', fontsize=12)
+ax.set_ylabel('Actor', fontsize=12)
+fig.savefig('count_actors.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df.PrimaryDirector.value_counts().sort_values()[-15:]
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_title('Most Common Directors for a Movie', fontsize=16)
+ax.set_xlabel('Count', fontsize=12)
+ax.set_ylabel('Director', fontsize=12)
+fig.savefig('count_directors.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+genre_summary = df.groupby('PrimaryGenre').agg({'budget': 'mean', 'revenue': 'mean', 'profit': 'mean'}).reset_index()
+genre_summary[['budget', 'revenue', 'profit']] = genre_summary[['budget', 'revenue', 'profit']] / 1000000
+genre_summary = genre_summary[~((genre_summary.PrimaryGenre ==  'Foreign') | (genre_summary.PrimaryGenre == 'TV Movie'))]
+
+# Plotting
+fig, ax = plt.subplots(figsize=(8,4))
+sns.barplot(x='profit', y='PrimaryGenre', data=genre_summary, label="Profit", color="#145a32", zorder=1)
+sns.barplot(x='revenue', y='PrimaryGenre', data=genre_summary, label="Revenue", color="#2e86c1", alpha=0.6, zorder=2)
+sns.barplot(x='budget', y='PrimaryGenre', data=genre_summary, label="Budget", color="#4a235a", alpha=0.6, zorder=3)
+
+ax.legend(ncol=3, loc="lower right", frameon=True)
+ax.set_xlabel('Amount (in millions of dollars)', fontsize=12)
+ax.set_ylabel('Genre', fontsize=12)
+ax.set_title('Comparison of Budget, Revenue, and Profit by Genre', fontsize=16)
+fig.savefig('genres_budget_revenue_profit.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+indices = df[(df.release_year >= 2000 )& (df.release_year < 2017)].groupby('release_year')['revenue'].idxmax()
+HTML(df.loc[indices, ['release_year', 'HTML_Poster_100px', 'title']].set_index('release_year').to_html(escape=False))
+\end{lstlisting}
+
+\begin{lstlisting}
+fig, ax = plt.subplots(figsize=(15, 8))  # Increase figure size
+bar_width = 0.5  # Decrease bar width
+ax.bar(tmp.release_year, tmp.revenue, width=bar_width, color='skyblue')  # Adjust bar color
+
+# Rotate x-ticks for better readability
+plt.xticks(rotation=45, ha='right')
+
+# Add horizontal gridlines
+ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.5)
+
+# Set y-axis label
+ax.set_ylabel('Revenue (in millions of dollars)')
+
+# Set title
+ax.set_title('Yearly Movie Revenue with Posters')
+
+# Adjust the image placement and size
+for i, url in enumerate(tmp.Poster):
+    img = get_image_from_url(url)
+    imagebox = OffsetImage(img, zoom=0.2)  # Adjust zoom as needed
+    ab = AnnotationBbox(imagebox, (tmp.release_year[i], tmp.revenue[i]), frameon=False)  # Offset_value to adjust the image placement above the bar
+    ax.add_artist(ab)
+ax.set_ylim(0, ax.get_ylim()[1]+200)
+# Show the plot
+plt.tight_layout()  # Adjust subplot params for better fit
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+from matplotlib import patheffects
+fig, ax = plt.subplots(figsize=(8, 15))  # Increase figure size
+bar_height = 0.8  # This is now the height of the horizontal bars
+
+# Create a horizontal bar chart
+ax.barh(tmp.release_year, tmp.revenue, height=bar_height, color='skyblue')
+
+# Rotate y-ticks for better readability
+plt.yticks(rotation=45, ha='right')
+
+# Add vertical gridlines
+ax.xaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.5)
+
+# Set x-axis label (since this is now the axis for revenue)
+ax.set_xlabel('Revenue (in millions of dollars)')
+
+# Set title
+ax.set_title('Highest Revenue Movie by Year', fontsize=16)
+
+# Adjust the image placement and size for horizontal bar chart
+for i, url in enumerate(tmp.Poster):
+    img = get_image_from_url(url)
+    imagebox = OffsetImage(img, zoom=0.15)  # Adjust zoom as needed
+    # Note: The y coordinate (tmp.release_year[i]) now comes before the x coordinate (tmp.revenue[i])
+    ab = AnnotationBbox(imagebox, (2700, tmp.release_year[i]), frameon=False, xycoords='data', pad=0.2)
+    ax.add_artist(ab)
+    
+text_path_effect = [patheffects.withStroke(linewidth=4, foreground='black')]
+
+for year, title in zip(tmp.release_year, tmp.title):
+    text = ax.text(20, year, title, color='white', fontsize=12, 
+                   ha='left', va='center')  # ha and va for horizontal and vertical alignment
+    text.set_path_effects(text_path_effect)
+
+
+# Adjust the limits to fit images
+ax.set_xlim(0, ax.get_xlim()[1]+200)  # You may need to adjust this based on your data
+ax.set_yticks(np.arange(2000, 2017))
+# Show the plot
+plt.tight_layout()  # Adjust subplot params for better fit
+fig.savefig('top_movie_by_revenue_by_year.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df[~df.PrimaryGenre.isin(['Foreign', 'Music', 'TV Movie'])].groupby(['release_month', 'PrimaryGenre'])['profit'].mean().unstack().loc[
+    ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']].T / 1000000
+fig, ax = plt.subplots(figsize=(8,6))
+sns.heatmap(tmp, cmap=sns.diverging_palette(220, 20, as_cmap=True), ax=ax)
+ax.set_xlabel('Month of release', fontsize=12)
+ax.set_ylabel('Genre', fontsize=12)
+ax.set_title('Average Profit by Genre and Month', fontsize=16)
+ax.collections[0].colorbar.set_label('Profit (in millions)')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df[~df.PrimaryGenre.isin(['Foreign', 'Music', 'TV Movie'])].groupby(['release_month', 'PrimaryGenre'])['BoxOfficeRevenue'].mean().unstack().loc[
+    ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']].T / 1000000
+fig, ax = plt.subplots(figsize=(8,6))
+sns.heatmap(tmp, cmap=sns.cubehelix_palette(start=2, rot=0, dark=0, light=.95, reverse=False, as_cmap=True), ax=ax)
+ax.set_xlabel('Month of release', fontsize=12)
+ax.set_ylabel('Genre', fontsize=12)
+ax.set_title('Average Box Office Revenue by Genre and Month', fontsize=16)
+ax.collections[0].colorbar.set_label('Revenue (in millions)')
+fig.tight_layout()
+fig.savefig('avg_box_office_revenue_heatmap.png')
+plt.show()
+\end{lstlisting}
+
+\begin{lstlisting}
+import networkx as nx
+
+# Create an empty graph
+G = nx.Graph()
+
+# Add nodes and edges
+for index, row in df.iterrows():
+    movie = row['title']
+    actors = row['cast']
+   
+    if movie is not np.nan and actors is not np.nan:
+        for actor in actors:
+            G.add_node(actor, type='actor')
+            G.add_node(movie, type='movie')
+            G.add_edge(actor, movie)
+            
+# # Optionally, differentiate node colors by type
+# colors = ['red' if G.nodes[node]['type'] == 'actor' else 'blue' for node in G]
+
+# # Draw the graph
+# plt.figure(figsize=(8, 8))  # Adjusted for better visibility
+# nx.draw(G, with_labels=False, node_color=colors, node_size=20, font_size=8, alpha=0.7)  # with_labels set to False for clarity
+# plt.title("Movie-Actor Network")
+# plt.show()
+
+nx.write_graphml(G, 'actors_movies.graphml')
+
+\end{lstlisting}
+
+\begin{lstlisting}
+G = nx.Graph()
+
+for actors in df['cast']:
+    if actors is not np.nan:
+        for i in range(len(actors)):
+            for j in range(i + 1, len(actors)):
+                actor_pair = (actors[i], actors[j])
+                if G.has_edge(*actor_pair):
+                    G[actor_pair[0]][actor_pair[1]]['weight'] += 1
+                else:
+                    G.add_edge(actor_pair[0], actor_pair[1], weight=1)
+                    
+nx.write_graphml(G, 'actor_pairs.graphml')
+
+sorted_edges = sorted(G.edges(data=True), key=lambda x: x[2]['weight'], reverse=True)
+
+N = 5  # for example, to get the top 5 pairs
+for edge in sorted_edges[:N]:
+    print(f"{edge[0]} and {edge[1]} appeared together in {edge[2]['weight']} movies.")
+\end{lstlisting}
+
+\begin{lstlisting}
+def plot_test_results(male, female, title, savefig=None):
+    fig = plt.figure(figsize=(10,6)) 
+    ax1 = plt.subplot2grid((3,2), (0,0), rowspan=2)
+    ax2 = plt.subplot2grid((3,2), (0,1), rowspan=2)
+    ax3 = plt.subplot2grid((3,2), (2,0), colspan=2)
+    
+    sns.kdeplot(male, common_norm=False, fill=True, ax=ax1, color=sns.color_palette()[0], label='Male')
+    sns.kdeplot(female, common_norm=False, fill=True, ax=ax1, color=sns.color_palette()[1], label='Female')
+    
+    medians = pd.Series([male.median(), female.median()], index=['Male', 'Female'])
+    errors = pd.Series([male.sem(), female.sem()], index=['Male', 'Female'])
+    medians.plot(kind='bar', yerr=errors, capsize=4, ax=ax2, color=sns.color_palette()[:2])
+    
+    u_statistic, p_value = stats.mannwhitneyu(male.dropna(), female.dropna(), alternative='two-sided')
+    if p_value < 0.05:
+        result = 'Statistically Significant Result'
+    else:
+        result = 'Non-statistically Significant Result'
+
+    
+    ax3.set_xticks([])
+    ax3.set_yticks([])
+    ax3.text(0.02,0.7,'Mann-Whitney U Test Results', fontdict={'fontsize':16, 'fontweight': 'semibold'})
+    ax3.text(0.02, 0.5, f"U-statistic: {u_statistic}, P-value: {p_value}", fontdict={'fontsize':14})
+    ax3.text(0.02, 0.3, result, fontdict={'fontsize':14})
+    rect = Rectangle((0, 0), 1, 1, linewidth=3, edgecolor='black', facecolor='none', linestyle='-')
+    ax3.add_patch(rect)
+    legend_handles = [Patch(facecolor=sns.color_palette()[0], label='Male'),
+                    Patch(facecolor=sns.color_palette()[1], label='Female')]
+
+    ax3.legend(handles=legend_handles, loc='lower right', title='Gender')
+    
+    ax1.set_xlabel('Profit (in millions)', fontsize=12)
+    ax1.set_ylabel('Density', fontsize=12)
+    ax2.set_xlabel('Gender', fontsize=12)
+    ax2.set_ylabel('Median Profit (in millions)', fontsize=12)
+    ax1.set_title('Density Plot', fontsize=18)
+    ax2.set_title('Median Difference Plot', fontsize=18)
+    fig.suptitle(title, fontsize=18, fontweight='semibold')
+    fig.tight_layout()
+    if savefig is not None:
+        fig.savefig(savefig)
+    plt.show()
+
+plot_test_results(df[df.LeadActorGender == 'Male']['profit']/1000000, df[df.LeadActorGender == 'Female']['profit']/1000000, 'Significance of Lead Actor Gender on Profit', savefig='test_actor_gender.png') # 
+plot_test_results(df[df.PrimaryDirectorGender == 'Male']['profit']/1000000, df[df.PrimaryDirectorGender == 'Female']['profit']/1000000, 'Significance of Director Gender on Profit', savefig='test_director_gender.png') # 
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df.groupby('PrimaryProductionCompany')['revenue'].mean().sort_values(ascending=False)[:20][::-1]
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_title('Top 20 Production Companies by Mean Revenue', fontsize=16)
+ax.set_xlabel('')
+\end{lstlisting}
+
+\begin{lstlisting}
+tmp = df.groupby('PrimaryProductionCompany')['revenue'].mean().sort_values(ascending=False)[:20][::-1] / 1000000
+fig, ax = plt.subplots(figsize=(8,4))
+ax.barh(tmp.index, tmp.values)
+ax.set_title('Top 20 Production Companies by Mean Revenue', fontsize=16)
+ax.set_xlabel('')
+\end{lstlisting}
+

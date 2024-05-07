@@ -1,0 +1,467 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[utf8]{lipsum, inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{adjustbox} % for adjusting table dimensions
+\usepackage{booktabs} % Used to create tables
+\usepackage{tabu} % Also used to create tables
+\usepackage{fancyhdr}
+% \usepackage{subcaption}
+\usepackage[style=chem-acs, articletitle=true]{biblatex}
+\addbibresource{references.bib}
+\usepackage{subfigure}
+
+
+\title{Predicting Fraudulent Transaction Using Binary Classification Algorithms}
+\author{Giorgos Tzimas}
+\date{May 2023}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+    Using customers' transactional dataset, we built two supervised learning machine learning algorithms, Logistic Regression and Random Forest, to classify each instance as either fraudulent or non-fraudulent transactions. After comparing the performance of both models on important metrics such as recall and False Positive Rate, we picked Random Forest as the final binary classification model to be used. 
+\end{abstract}
+
+\section{Dataset Description}
+\subsection{Background}
+The panel dataset contains commercial customers' financial information and days past due indicator from 2000 to 2020 provided by the Capital One Data Scientist Recruiting process. \\ \\
+Dataset Link: \textbf{https://github.com/CapitalOneRecruiting/DS}
+
+\subsection{Observations and Attributes}
+The dataset comprises a comprehensive collection of \textbf{786,363} entries, encompassing \textbf{29} distinct features. These features contain a range of information pertaining to both the customer and the transactional context. Customer-related attributes include identifiers, credit card balance, credit limit, and more. Similarly, business-related attributes encompass details like business name, category, and point-of-sale information.
+\vfill
+\subsection{Data Types}
+Out of the 29 features in the dataset:
+\begin{itemize}
+  \item 17 are of type "object" or text
+  \item 6 are of type "integer"
+  \item 3 are of type "float"
+  \item 3 are of type "boolean"
+\end{itemize}
+
+\begin{table}[h!]
+    \centering
+    \input{tables/dtypes1}
+    \input{tables/dtypes2}
+    \caption{Dataset attributes and their types}
+    \label{tab:dtypes}
+\end{table}
+
+\section{Data Cleaning}
+Some of our features are missing values either due to not being entered or that feature containing sensitive information. Features  \textbf{recurringAuthInd}, \textbf{posOnPremises}, \textbf{merchantZip}, \textbf{merchantState}, \textbf{merchantCity} and \textbf{echoBuffer} will be removed from the dataset. The rest of the features with missing values will be imputed using a "most frequent" approach due to all of them being categorical in nature.
+\begin{table}[h]
+    \centering
+    \input{tables/missing}
+    \caption{Features with missing values}
+    \label{tab:missing}
+\end{table}
+\newpage
+\section{Feature Extraction}
+There are three datetime features in the dataset: \textbf{transactionDateTime}, \textbf{accountOpenDate}, \textbf{dateOfLastAddressChange} and \textbf{currentExpDate}. We can extract transactional information from these features to include in the dataset.\\
+
+\noindent From \textbf{transactionDateTime}, we can get the month, day and hour that the transaction occurred.
+\begin{table}[h]
+    \centering
+    \input{tables/trans_day_table}
+    \caption{Features extracted from transactionDateTime}
+    \label{tab:my_label}
+\end{table}
+
+\noindent Additionally, we can get the month and year from the expiration date.
+\begin{table}[h]
+    \centering
+    \input{tables/exp_date_table}
+    \caption{Features extracted from currentExpDate}
+    \label{tab:my_label}
+\end{table}
+
+\newpage
+We can also extract date differences in days from each datetime feature, such as how long the account had been active, how many days since the last address change and how close to the expiration date the account was at the time of the transaction.
+
+\begin{table}[h]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \input{tables/date_diff_table} }
+    \caption{Date differences extracted}
+    \label{tab:my_label}
+\end{table}
+
+Another feature which might be useful is whether the credit card's CVV code matched the entered CVV at the time of the transaction.
+
+\begin{table}[h]
+    \centering
+    \input{tables/cvv_table}
+    \caption{Caption}
+    \label{tab:my_label}
+\end{table}
+
+The last feature to be extracted is the brand name from the merchant feature allowing us to view which store brands have the largest fraudulent transaction counts.
+
+\begin{table}[h]
+    \centering
+    \input{tables/merchant_brand_table}
+    \caption{Brand name extracted from merchant feature}
+    \label{tab:merchant_brand_table}
+\end{table}
+
+\newpage
+\section{Exploratory Data Analysis}
+In this section, we will visually explore our dataset to gain some insight into the relationships between different features.
+\subsection{Total Counts by Fraud Status}
+Approximately 98\% of the records are non-fraudulent. This is a very large dataset imbalance which might heavily skew the results of the model. This imbalance will be addressed with an under-sampling method during the model creation stage.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/isFraud_counts.png}
+    \caption{Caption}
+    \label{fig:isFraud_counts}
+\end{figure}
+\newpage
+\subsection{Numeric Feature Distribution}
+All of the numerical features of the dataset have a right-skewed distribution. Although some of these extreme values could be outliers, it is possible that they are valid due to fraudulent transactions differing from non-fraudulent ones on a bigger scale.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/numeric_histograms.png}
+    \caption{Distributions and mean values of numerical features}
+    \label{fig:numeric_histograms}
+\end{figure}
+
+\subsection{Numeric Feature Boxplot by Fraud Status}
+The biggest difference in numeric feature distributions when grouped by fraud status is visible for transaction amount. Median transaction amount is larger for fraudulent transactions compared to non-fraudulent. The interquartile range  is also larger for fraudulent transactions.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/numeric_boxplots_by_fraud.png}
+    \caption{Numeric feature boxplots by fraud status}
+    \label{fig:my_label}
+\end{figure}
+
+\newpage
+\subsection{Transaction Amount by Fraud Status}
+The median transaction amount for fraudulent transactions is approximately \$176. For non-fraudulent transactions it is approximately \$86. Fraudulent transactions tend to cost almost double the amount of non-fraudulent ones in dollars.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/trans_amount_by_fraud.png}
+    \caption{Median transaction amount by fraud status}
+    \label{fig:my_label}
+\end{figure}
+
+\newpage
+\subsection{Transactions by Country}
+Approximately 99\% of the transactions in the dataset are made inside the United States. When broken down into percentages by fraud status and by country, there does not seem to be any significant difference in proportions.
+
+\begin{figure}[h!]
+    \centering
+    \subfigure[Transaction count by country]{\includegraphics[width=1\textwidth]{images/trans_count_by_country.png}}
+    \vspace{\baselineskip}
+    \subfigure[Transaction type percentages by country]{\includegraphics[width=1\textwidth]{images/trans_perc_by_country.png}}
+    \label{fig:side-by-side}
+    \caption{Transaction counts and proportions by status}
+\end{figure}
+   
+
+
+\newpage
+\subsection{Fraudulent Transaction Amount by Country}
+Canada is the country with the largest median fraudulent transaction amount (\$229), followed by Puerto Rico (\$198), the United States (\$176) and Mexico (\$162).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/median_fraud_trans_amount_by_country.png}
+    \caption{Median fraudulent transaction amount by country code}
+    \label{fig:my_label}
+\end{figure}
+
+
+\subsection{Transactions by Card Presence}
+There is a great difference in count of transactions by card presence when separated by fraud status. Fraudulent transactions tend to not have the credit card present at the time, presumably due to most of them occurring online where the credit card information can be inputted manually.
+
+\begin{figure}[h!]
+    \centering
+    \subfigure[Transaction count by card presence and fraud status]{\includegraphics[width=1\textwidth]{images/count_cardPresent_by_isFraud.png}}
+    \vspace{\baselineskip}
+    \subfigure[Card presence percentages by fraud status]{\includegraphics[width=1\textwidth]{images/perc_cardPresent_by_isFraud.png}}
+    \label{fig:side-by-side}
+    \caption{Transaction counts and proportions by status}
+\end{figure}
+
+
+\newpage
+\subsection{Top 20 Brands by Transaction Count}
+The brand with the most transactions in the dataset is \textbf{AMC} with 37,942 total transactions. 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/top_20_merchants_by_count.png}
+    \caption{Top 20 brand by number of total transactions}
+    \label{fig:my_label}
+\end{figure}
+
+\newpage
+\subsection{Top 20 Brands by Fraudulent Transaction Count}
+The brand with the most fraudulent transactions in the dataset is \textbf{Lyft} with 760 total transactions. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/top_20_merchants_by_fraudulent_count.png}
+    \caption{Top 20 brand by number of total fraudulent transactions}
+    \label{fig:my_label}
+\end{figure}
+
+\newpage
+\subsection{Top 20 Brands by Average Fraudulent Transaction Amount}
+Marriott Hotels has the largest average fraudulent transaction amount at \$444.10
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/top_20_merchants_by_avg_trans_amount.png}
+    \caption{Top 20 brand by average fraudulent transaction amount}
+    \label{fig:my_label}
+\end{figure}
+
+\newpage
+\section{Unsupervised Learning}
+In this section we will extract patterns and structures from the dataset by grouping data points into clusters based on their inherent characteristics, enabling the discovery of natural groupings within the dataset.
+
+\subsection{Dimensionality Reduction: Singular Value Decomposition}
+Our preprocessed and transformed dataset has a total of 266 features. In order to more effectively cluster all these data points, we will perform dimensionality reduction using scikit-learn's \textbf{TruncatedSVD}, a dimensionality reduction technique commonly used in machine learning and data analysis that is particularly effective when dealing with high-dimensional data. The total number of dimenionally-reduced components for the model will be decided using the total explained variance ratio, a metric used to assess the amount of information or variability in the data.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/explained_variance_ratio.png}
+    \caption{Total Explained Variance Ratio based on number of components}
+    \label{fig:my_label}
+\end{figure}
+With 12 components we can retain approximately 74\% of the variance of the original dataset. In addition, we drastically reduced the number of features from 266 to only 12.
+
+\newpage
+\subsection{Clustering: KMeans}
+With our dimensionally-reduced dataset, we will build a KMeans clustering model to group those datapoints. The optimal number of clusters will be determined by calculating the within-cluster sum of squares for the model, a metric used in K-means clustering to evaluate the quality of the clustering solution.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/kmeans_inertia.png}
+    \caption{Within-Cluster Sum of Squares based on number of clusters}
+    \label{fig:my_label}
+\end{figure}
+\newpage
+We will use 4 clusters for the KMeans algorithm, with a total within-cluster sum of squares of 140,216.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/count_by_cluster.png}
+    \caption{Caption}
+    \label{fig:my_label}
+\end{figure}
+\newpage
+Cluster 1 has the largest count of data points, followed by cluster 3, cluster 0 and cluster 2.
+
+\section{Supervised Learning}
+Supervised learning is a machine learning approach where a model learns to make predictions or decisions based on labeled training data. In supervised learning, we have a dataset consisting of input features and corresponding target labels or outputs. The goal is to train a model that can generalize from the provided examples and accurately predict the target labels for new, unseen data. We will create two different machine learning model to classify the data as fraudulent or non-fraudulent.
+
+\subsection{Dataset Resampling}
+Due to our dependent variable being drastically imbalanced, we will need to resample the dataset to eliminate that imbalance. Since our minority class contains 12,417 records, we will use under-sampling, which is a method that aims to reduce the imbalance between classes by randomly removing samples from the majority class until the desired balance is achieved.
+
+\begin{table}[h]
+    \centering
+    \input{tables/resampling}
+    \caption{Transaction by fraud status before and after resampling}
+    \label{tab:my_label}
+\end{table}
+\newpage
+Now both fraudulent and non-fraudulent transactions are equal in count, which will significantly increase our model performances.
+
+\subsection{Hyperparameter Tuning}
+For both the Logistic Regression and Random Forest models, hyperparameter estimation and tuning will be done using scikit-learn's \textbf{GridSearchCV}. GridSearchCV systematically searches and evaluates the performance of a model across a grid of possible hyperparameter values and returns the best-tuned model that will yield the greatest performance.
+
+
+\begin{figure}[h]
+    \centering
+    \subfigure[Logistic Regression]{
+        \input{tables/lr_params}
+        \label{subfig:table1}
+    }
+    \hfill
+    \subfigure[Random Forest]{
+        \input{tables/rf_params}
+        \label{subfig:table2}
+    }
+    \caption{Hyperparameters for both models}
+    \label{fig:tables}
+\end{figure}
+
+\newpage
+\subsection{Logistic Regression}
+Logistic Regression models the relationship between the input features and the probability of belonging to a particular class.  The input features are linearly combined with weights or coefficients, and then passed through a sigmoid or logistic function. The sigmoid function maps the linear combination to a value between 0 and 1, representing the probability of the input belonging to the positive class. \\
+
+\noindent Using the best estimator result from GridSearchCV, we fit the training and testing dataset to the model and get the probabilities for the positive class. We then compute the ROC-AUC Curve to find the most appropriate threshold value for the model.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/roc_lr.png}
+    \caption{ROC-AUC curve for Logistic Regression}
+    \label{fig:my_label}
+\end{figure}
+
+\begin{table}[h]
+    \centering
+    \begin{adjustbox}{width=1\textwidth}
+    \input{tables/thresholds_lr}
+    \end{adjustbox}{}
+    \caption{Model metrics for different threshold values}
+    \label{tab:my_label}
+\end{table}
+
+\noindent In our case, a threshold of 0.45 seems to yield the best results for our purpose. We want to correctly classify as many actual positive cases as possible but not at the cost of a very high False Positive rate. This threshold offers a good balance in this case, with a harmonic mean value (F1 Score) of 0.72198. 
+
+
+\begin{figure}[h]
+    \centering
+    \subfigure[Confusion matrix]{
+        \input{tables/cm_lr}
+        \label{subfig:table1}
+    }
+    \hspace{1cm}
+    \subfigure[Model metrics]{
+        \input{tables/thresh_lr_picked}
+        \label{subfig:table2}
+    }
+    \caption{Logistic Regression results with threshold equal to 0.45}
+    \label{fig:tables}
+\end{figure}
+\newpage
+\noindent Our final Logistic Regression model has an accuracy of 0.6957, True Positive Rate of 0.79 and a False Positive Rate of 0.3987. We will cross-validate the model performance by training it 50 times to get the mean metrics, distributions and confidence intervals for each metric.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.15\textwidth]{images/lr_metrics_graph.png}
+    \caption{Logistic Regression metrics (n\_fits=50)}
+    \label{fig:my_label}
+\end{figure}
+
+\textbf{Results}:
+\noindent If we were to repeat the estimation process n number of times, in 95\% of cases our metrics would fall in the following ranges:
+\begin{itemize}
+  \item Accuracy: [0.6881, 0.6919]
+  \item Precision: [0.6672, 0.6728]
+  \item Recall: [0.7877, 0.7923]
+  \item F1 Score: [0.7180, 0.7220]
+  \item False Positive Rate: [0.3968, 0.4032]
+  \item Specificity: [0.5968, 0.6032]
+\end{itemize}
+
+\subsection{Logistic Regression Feature Importances}
+In order to determine what the most important features for the Logistic Regression model are, we will look at the top 20 features with the largest absolute coefficients. The magnitude of the coefficient indicates the strength of the relationship between the independent variable and the log-odds of the event. A larger magnitude suggests a stronger influence on the outcome.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/lr_feature_importances.png}
+    \caption{Most important features for Linear Regression model}
+    \label{fig:enter-label}
+\end{figure}
+
+\begin{table}[h]
+    \centering
+    \resizebox{0.5\textwidth}{!}{%
+    \input{tables/lr_feature_imp_table} }
+    \caption{Features with largest absolute coefficients for Logistic Regression model}
+    \label{tab:my_label}
+\end{table}
+
+The most important feature by coefficient effect is \textbf{merchantCategoryCode\_fuel}.
+\newpage
+\subsection{Random Forest}
+Random Forest is an ensemble machine learning algorithm that is composed of multiple decision trees, with each tree trained independently on a random subset of the training data. The class with the most votes across all the trees is selected as the predicted class. It is less prone to overfitting and able to handle data with a large number of features, both categorical and numerical.
+
+\noindent Same as with our Linear Regression model, we will use the best estimator resulting from GridSearchCV and fit preprocessed dataset.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/roc_rf.png}
+    \caption{ROC-AUC curve for Random Forest}
+    \label{fig:my_label}
+\end{figure}
+
+\begin{table}[h]
+    \centering
+    \begin{adjustbox}{width=1\textwidth}
+    \input{tables/thresholds_rf}
+    \end{adjustbox}{}
+    \caption{Model metrics for different threshold values}
+    \label{tab:my_label}
+\end{table}
+\newpage
+\noindent For this model, a threshold of 0.5 seems to be the most appropriate, with a harmonic mean value (F1 Score) of 0.698187.
+ 
+
+\begin{figure}[h]
+    \centering
+    \subfigure[Confusion matrix]{
+        \input{tables/cm_rf}
+        \label{subfig:table1}
+    }
+    \hspace{1cm}
+    \subfigure[Model metrics]{
+        \input{tables/thresholds_rf_picked}
+        \label{subfig:table2}
+    }
+    \caption{Random Forest results with threshold equal to 0.50}
+    \label{fig:tables}
+\end{figure}
+
+\noindent Our final Random Forest model has an accuracy of 0.6891, True Positive Rate of 0.71 and a False Positive Rate of 0.33. As with the Linear Regression model, we will cross-validate the model performance by training it 50 times to get the mean metrics, distributions and confidence intervals for each metric.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.15\textwidth]{images/rf_metrics_graph.png}
+    \caption{Logistic Regression metrics (n\_fits=50)}
+    \label{fig:my_label}
+\end{figure}
+
+\textbf{Results}:
+\noindent If we were to repeat the estimation process n number of times, in 95\% of cases our metrics would fall in the following ranges:
+\begin{itemize}
+  \item Accuracy: [0.6879, 0.6921]
+  \item Precision: [0.6866, 0.6934]
+  \item Recall: [0.6942, 0.7058]
+  \item F1 Score: [0.6875, 0.6925]
+  \item False Positive Rate: [0.3145, 0.3255]
+  \item Specificity: [0.6745, 0.6855]
+\end{itemize}
+
+\subsection{Random Forest Feature Importances}
+Random Forest feature importances provide a measure of the relative importance of each feature in a Random Forest model. The feature importances are calculated based on the impurity reduction or information gain that each feature contributes to the overall performance of the Random Forest. The total sum of all values equals to 1, so each value gives us the proportion of importance in the total model.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/rf_importance_scores.png}
+    \caption{Most important features for Random Forest model}
+    \label{fig:enter-label}
+\end{figure}
+\newpage
+\begin{table}[h]
+    \centering
+    \resizebox{0.5\textwidth}{!}{%
+    \input{tables/rf_feature_imp_table} }
+    \caption{Features with largest importance for Random Forest model}
+    \label{tab:my_label}
+\end{table}
+
+The most relevant feature in determining whether a transaction is fraudulent is \textbf{transactionAmount} (0.16), followed by \textbf{posEntryMode\_05} (0.12) and \textbf{cardPresent} (0.08).
+
+\newpage
+\section{Model Comparison}
+Out of the two classification models, Random Forest seems to have the best performance for our purposes, with a recall score of 0.715137 and a False Positive Rate of 0.332624. Althouth Logistic Regression is outperforming the Random Forest model when it comes to recall, it also has a relatively high False Positive Rate in comparison. 
+
+\begin{figure}[h]
+    \centering
+    \subfigure[Model metrics]{
+        \begin{adjustbox}{width=1\textwidth}
+    
+        \input{tables/comp_df}
+        \end{adjustbox}{}
+        \label{subfig:table1}
+    }
+    \hspace{1cm}
+    \subfigure[ROC-AUC Curves]{
+        \includegraphics[width=1\textwidth]{images/roc_both_models.png}
+        \label{subfig:table2}
+    }
+    \caption{Comparison of both classification algorithms}
+    \label{fig:tables}
+\end{figure}
+
+\end{document}

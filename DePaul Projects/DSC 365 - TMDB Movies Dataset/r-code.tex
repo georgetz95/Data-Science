@@ -1,0 +1,895 @@
+\lstset{style=rstyle}
+
+\begin{lstlisting}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(scales)
+
+# For inflation adjustments
+library(priceR)
+
+# For my Sankey
+library(highcharter)
+library(htmlwidgets)
+library(webshot)
+
+# For pivot_longer()
+library(tidyverse)
+
+# For linear correlation annotation on scatterplots
+library(ggpubr)
+
+# A couple of my libraries conflict in a way that forced me to specify 
+# "dplyr::" for aggregation functions.
+\end{lstlisting}
+
+\begin{lstlisting}
+# Loading and preprocessing data.
+movie_df_full <- read.csv("movies_complete.csv")
+head(movie_df_full)
+\end{lstlisting}
+
+\begin{lstlisting}
+### Creating a subset that primarily contains the attributes I'm interested in
+# First, selecting specific attributes
+mov_df <- movie_df_full %>% select(title, release_date, revenue, budget, popularity, vote_count, vote_average, runtime, original_language, PrimaryGenre, PrimaryProductionCompany, PrimaryProductionCountry )
+\end{lstlisting}
+
+\begin{lstlisting}
+### Creating *release month* and *release year* from existing attribute *release date*
+# From the "release_date" attribute, I create several attributes:
+# release_month, release_year, and release_mon_yr .
+
+mov_df <- mov_df %>%
+  mutate(release_date = as.POSIXct(strptime(release_date, '%Y-%m-%d')),
+         release_month = month(release_date),
+         release_year = year(release_date))
+
+head(mov_df)
+
+mov_df$release_mon_yr = format(as.Date(mov_df$release_date), "%m-%Y")
+
+# head(mov_df, 10)
+ mov_df %>%
+   count(release_year)
+\end{lstlisting}
+
+\begin{lstlisting}
+### Removing data older than 1996 and newer than 2015
+# 2015 is the most recent year of complete data in this set.
+
+mov_df <- mov_df %>%
+  filter(release_year <= 2015 & release_year >= 2001)
+
+ mov_df %>%
+   count(release_year)
+\end{lstlisting}
+
+\begin{lstlisting}
+### Removing some records with invalid *revenue* and *budget* values
+# The dataset contains values of zero for revenue and budget that strike us as
+# invalid. Removing tuples that show those values.
+
+nrow(mov_df)
+
+mov_df <- mov_df %>%
+  filter(revenue != 0 & budget != 0)
+
+nrow(mov_df)
+\end{lstlisting}
+
+\begin{lstlisting}
+### Defining the function for inflation adjustment
+country <- "US"
+inflation_dataframe <- retrieve_inflation_data(country)
+countries_dataframe <- show_countries()
+
+# 2022 is the most recent year that this function works for.
+adjust_for_inflation(100, 2016, country, 2022,
+                     inflation_dataframe = inflation_dataframe,
+                     countries_dataframe = countries_dataframe)
+
+
+# The cpiLookup function from Tutorial 4 doesn't work with our dataset, which shows repeated release years. The below function cannot be used with mutate() on such a dataset.
+
+# cpiLookup <- function(y) { 
+#                  return(CPITable %>% 
+#                         filter(Year %in% y) %>%
+#                         select(Value) %>% 
+#                         .$Value ) }
+\end{lstlisting}
+
+\begin{lstlisting}
+# Creating inflation-adjusted attributes
+
+mov_df <- mov_df %>%
+  mutate(adjustedRev = adjust_for_inflation(revenue, release_year,
+                                            country, 2022,
+                     inflation_dataframe = inflation_dataframe,
+                     countries_dataframe = countries_dataframe))
+
+
+mov_df <- mov_df %>%
+  mutate(adjustedBudget = adjust_for_inflation(budget, release_year,
+                                            country, 2022,
+                     inflation_dataframe = inflation_dataframe,
+                     countries_dataframe = countries_dataframe))
+
+mov_df %>%
+  select(release_year, budget, adjustedBudget)
+\end{lstlisting}
+
+\begin{lstlisting}
+# After adjusting for inflation, which movies have the top revenues
+mov_df %>%
+  select(title, adjustedRev, release_year) %>%
+  arrange(-adjustedRev)
+\end{lstlisting}
+
+\begin{lstlisting}
+### Creating an attribute for the quartile of inflation-adjusted revenue
+breaks_adjRev_qrts <- quantile(mov_df$adjustedRev, c(0.75))
+breaks_adjRev_qrts
+
+# Binning accordingly (but approximating the break values with even numbers that are easier for viewers to read.)
+mov_df <- mov_df %>%
+  mutate(adjRev_quartile = cut(adjustedRev,
+                               breaks = c(0, 209953708, 10000000000),
+                               labels = c("Lower 3 quartiles of revenue",
+                                          "Top revenue quartile"),
+                               include.lowest=TRUE))
+\end{lstlisting}
+
+\begin{lstlisting}
+### Creating a *release season* attribute
+# Defining a function getSeason (found on StackOverflow) and use it to create a release_season attribute from release_date.
+
+getSeason <- function(input.date){
+  numeric.date <- 100*month(input.date)+day(input.date)
+  ## input Seasons upper limits in the form MMDD in the "break =" option:
+  cuts <- base::cut(numeric.date, breaks = c(0,319,0620,0921,1220,1231)) 
+  # rename the resulting groups (could've been done within cut(...levels=) if "Winter" wasn't double
+  levels(cuts) <- c("Winter","Spring","Summer","Fall","Winter")
+  return(cuts)
+}
+
+mov_df <- mov_df %>%
+  mutate(release_season = getSeason(release_date))
+\end{lstlisting}
+
+\begin{lstlisting}
+# Creating attribute that tracks whether the season of release was warmer or 
+# cooler. Used to analyze how some genres thrive in warmer months.
+
+mov_df <- mov_df %>%
+  mutate(warmSzn_movie = ifelse(release_season %in% c("Spring", "Summer"), 
+                                paste("Warmer Season (", PrimaryGenre, ")"), 
+                                paste("Cooler Season (", PrimaryGenre, ")")))
+
+head(mov_df, 10)
+
+# Writing this preprocessed data to file
+write.csv(mov_df, "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\mov_df_processed.csv", row.names = FALSE)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Prepping data for Sankey, specifically
+# Including only film records that show a PrimaryGenre that is top-selling
+
+# Identifying the Genres that earned the most revenue in this period
+mov_df %>%
+  dplyr::group_by(PrimaryGenre) %>%
+  dplyr::summarise(total_rev = sum(adjustedRev)) %>%
+  arrange(-total_rev) %>%
+  head(10)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Improved Seasonal Sankey
+# Narrowing dataset to include only records associated with a top-5-earning genre.
+summer_movie_sankey_df <- mov_df %>%
+  filter(PrimaryGenre %in% c("Family", "Science Fiction", "Adventure", "Animation"))
+\end{lstlisting}
+
+\begin{lstlisting}
+# TESTING WARMER COOLER SEASON
+summer_movie_sankey_df <- summer_movie_sankey_df %>%
+  select(PrimaryGenre, warmSzn_movie, adjRev_quartile)
+
+
+summer_movie_Sankey <- hchart(data_to_sankey(summer_movie_sankey_df), "sankey", name = "Relating season of release, genre, and adj-revenue quartile")
+
+summer_movie_Sankey <- summer_movie_Sankey %>%
+  hc_title(text = "Seasonal blockbusting rate is distinct from seasonal average") %>%
+  hc_subtitle(text = "Though these genres might all register higher average revenues during the warmer months, their proportions of blockbusters in that time don't necessarily improve.")
+
+summer_movie_Sankey
+\end{lstlisting}
+
+\begin{lstlisting}
+# Saving the sankey HTML and png files
+htmlwidgets::saveWidget(widget = summer_movie_Sankey, file = 'C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\summer_blockbuster_sankey.html')
+
+
+webshot::install_phantomjs()
+
+webshot::webshot(url = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\summer_blockbuster_sankey.html",
+               file = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\summer_blockbuster_sankey.png" , delay = 5)
+\end{lstlisting}
+
+\begin{lstlisting}
+## SUMMER MOVIE SHARE CHART
+
+# Summer genre count shares
+mov_summer_df <- mov_df
+
+mov_summer_df %>%
+  filter(release_season %in% c("Spring", "Summer"))
+
+mov_summer_df <- mov_summer_df %>%
+  mutate(summerGenre = ifelse(PrimaryGenre %in% c("Adventure", "Family",
+                                           "Science Fiction", "Animation", "Thriller"),
+                       PrimaryGenre,
+                       "Other"))
+
+mov_summer_df$summerGenre <- factor(mov_summer_df$summerGenre, 
+                                       levels = c("Adventure", "Animation",
+                                                  "Science Fiction", "Family",
+                                                  "Thriller", "Other"))
+
+summer_counts_df <- mov_summer_df %>%
+  count(summerGenre) %>%
+  arrange(-n)
+
+# summer_counts_df
+
+movie_count <- nrow(mov_summer_df)
+
+summer_counts_df <- summer_counts_df %>%
+  mutate(count_share = n / movie_count)
+
+summer_counts_df
+\end{lstlisting}
+
+\begin{lstlisting}
+# Summer genre revenue shares
+summer_revs_df <- mov_summer_df %>%
+  group_by(summerGenre) %>%
+  summarise(tot_adjRev = sum(adjustedRev)) %>%
+  arrange(-tot_adjRev)
+
+summer_adjRev_total = sum(summer_revs_df$tot_adjRev)
+
+summer_revs_df <- summer_revs_df %>%
+  mutate(rev_share = tot_adjRev / summer_adjRev_total)
+
+summer_revs_df
+\end{lstlisting}
+
+\begin{lstlisting}
+# Summer genre popularity shares
+summer_pops_df <- mov_summer_df %>%
+  group_by(summerGenre) %>%
+  summarise(tot_pop = sum(popularity)) %>%
+  arrange(-tot_pop)
+
+summer_pop_total_all = sum(summer_pops_df$tot_pop)
+
+summer_pops_df <- summer_pops_df %>%
+  mutate(pop_share = tot_pop / summer_pop_total_all)
+
+summer_pops_df
+\end{lstlisting}
+
+\begin{lstlisting}
+# joining these aggregations, message = FALSE
+summer_mov_proport_plot_df <- summer_counts_df %>%
+  inner_join(summer_revs_df) %>%
+  inner_join(summer_pops_df) %>%
+  select(summerGenre, count_share, rev_share, pop_share)
+
+summer_mov_proport_plot_df
+
+summer_mov_proport_plot_df <- summer_mov_proport_plot_df %>%
+  pivot_longer(!summerGenre, names_to = "Film_Measure", values_to ="Share")
+
+summer_mov_proport_plot_df <- summer_mov_proport_plot_df %>%
+  mutate(Film_Measure = fct_recode(as.factor(Film_Measure),
+                                   "Sample Count" = "count_share",
+                                   "Revenue" = "rev_share",
+                                   "Popularity" = "pop_share"))
+
+
+
+
+levels(summer_mov_proport_plot_df$Film_Measure) <- c("Sample Count", "Revenue", "Popularity")
+levels(summer_mov_proport_plot_df$Film_Measure)
+
+
+summer_mov_proport_plot_df <- summer_mov_proport_plot_df %>%
+  mutate(Share_rnd = round(Share, 3))
+
+summer_mov_proport_plot_df
+\end{lstlisting}
+
+\begin{lstlisting}
+# FINAL VIZ
+proport_plot_palette <-  c("Action"="#94aeca", "Adventure"="#f7ba7e",
+                   "Comedy"="#cfaec6", "Drama"="#ed999a", "Animation"="#acd3d0",
+                   "Other"="#d5cfcd", "Thriller"="#5a5858", "Science Fiction"="#B9fdbe", "Family"="#Cfabfb")
+
+summer_mov_proport_plot_df %>%
+  filter(summerGenre != "Other") %>%
+  ggplot(aes(x = summerGenre, y = Share, fill = summerGenre)) + 
+  geom_bar(stat='identity') + 
+facet_wrap(~Film_Measure) +
+  geom_text(aes(label = Share_rnd),
+            color = "white", size = 4.5,
+            vjust = 1, fontface = "bold")  +
+  scale_y_continuous(labels = scales::percent) + 
+  scale_fill_manual(name = "Genre", values = proport_plot_palette) +
+  guides(fill = guide_legend(ncol = 5)) +
+  ggtitle("Some Genres Thrive in Warmer Weather") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 20, 
+                                  vjust = 2, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position="bottom",
+        legend.box = "horizontal",
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        strip.text = element_text(size = 16),
+        panel.grid.major.x = element_blank()) +
+  labs(subtitle = "Shares by genre of various totals from Spring and Summer releases, years 2001 to 2015.")
+\end{lstlisting}
+
+\begin{lstlisting}
+# Making the (previous) Sankey
+
+# Narrowing dataset to include only records associated with a top-5-earning genre.
+mov_df_top_gens <- mov_df %>%
+  filter(PrimaryGenre %in% c("Action", "Adventure", "Drama", "Comedy", "Animation"))
+
+# TESTING WARMER COOLER SEASON
+season_genre_sankey_df <- mov_df_top_gens %>%
+  select(PrimaryGenre, warmSzn_movie, adjRev_quartile)
+
+
+season_genre_Sankey <- hchart(data_to_sankey(season_genre_sankey_df), "sankey", name = "Relating season of release, genre, and adj-revenue quartile")
+
+season_genre_Sankey <- season_genre_Sankey %>%
+  hc_title(text = "Season of Release, Genre, and Revenue Quartile") %>%
+  hc_subtitle(text = "Examining how release season, genre, and revenue quartile relate in terms of distribution. Revenues were inflation-adjusted to their 2022 equivalents.")
+
+season_genre_Sankey
+\end{lstlisting}
+
+\begin{lstlisting}
+season_genre_sankey_df <- mov_df_top_gens %>%
+  select(release_season, PrimaryGenre, adjRev_quartile)
+
+
+season_genre_Sankey <- hchart(data_to_sankey(season_genre_sankey_df), "sankey", name = "Relating season of release, genre, and adj-revenue quartile")
+
+season_genre_Sankey <- season_genre_Sankey %>%
+  hc_title(text = "Season of Release, Genre, and Revenue Quartile") %>%
+  hc_subtitle(text = "Examining how release season, genre, and revenue quartile relate in terms of distribution. Revenues were inflation-adjusted to their 2022 equivalents.")
+
+season_genre_Sankey
+\end{lstlisting}
+
+\begin{lstlisting}
+# Saving the sankey HTML and png files
+htmlwidgets::saveWidget(widget = season_genre_Sankey, file = 'C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-adjRevQ_sankey_all_years.html')
+
+
+# webshot::install_phantomjs()
+
+webshot::webshot(url = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-adjRevQ_sankey_all_years.html",
+                 file = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-adjRevQ_sankey_all_years.png" , delay = 5)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Original Proportionality-by-Genre Bar Chart (of the 5 top-grossing genres)
+
+# proportionality by genre
+mov_df2 <- mov_df
+
+# head(mov_df2)
+
+mov_df2 <- mov_df2 %>%
+  mutate(bigGenre = ifelse(PrimaryGenre %in% c("Action", "Adventure", "Drama",
+                                           "Comedy", "Animation"),
+                       PrimaryGenre,
+                       "Other"))
+
+mov_df2_gen_cnts <- mov_df2 %>%
+  count(bigGenre) %>%
+  arrange(-n)
+
+movie_count = nrow(mov_df2)
+
+mov_df2_gen_cnts <- mov_df2_gen_cnts %>%
+  mutate(count_share = n / movie_count)
+
+mov_df2_gen_cnts
+\end{lstlisting}
+
+\begin{lstlisting}
+# Revenue shares by genre
+mov_df2_rev_sums <- mov_df2 %>%
+  group_by(bigGenre) %>%
+  summarise(tot_adjRev = sum(adjustedRev)) %>%
+  arrange(-tot_adjRev)
+
+adjRev_total = sum(mov_df2_rev_sums$tot_adjRev)
+
+mov_df2_rev_sums <- mov_df2_rev_sums %>%
+  mutate(rev_share = tot_adjRev / adjRev_total)
+
+mov_df2_rev_sums
+\end{lstlisting}
+
+\begin{lstlisting}
+# Popularity shares by genre
+mov_df2_pop_sums <- mov_df2 %>%
+  group_by(bigGenre) %>%
+  summarise(tot_pop = sum(popularity)) %>%
+  arrange(-tot_pop)
+
+pop_total_all = sum(mov_df2_pop_sums$tot_pop)
+
+mov_df2_pop_sums <- mov_df2_pop_sums %>%
+  mutate(pop_share = tot_pop / pop_total_all)
+
+mov_df2_pop_sums
+\end{lstlisting}
+
+\begin{lstlisting}
+# adjBudget shares by genre
+mov_df2_budg_sums <- mov_df2 %>%
+  group_by(bigGenre) %>%
+  summarise(tot_adjBudg = sum(adjustedBudget)) %>%
+  arrange(-tot_adjBudg)
+
+adjBudg_total_all = sum(mov_df2_budg_sums$tot_adjBudg)
+
+mov_df2_budg_sums <- mov_df2_budg_sums %>%
+  mutate(budg_share = tot_adjBudg / adjBudg_total_all)
+
+mov_df2_budg_sums
+\end{lstlisting}
+
+\begin{lstlisting}
+# joining these aggregations, message = FALSE
+mov_df_proportional_plot_df <- mov_df2_gen_cnts %>%
+  inner_join(mov_df2_rev_sums) %>%
+  inner_join(mov_df2_pop_sums) %>%
+  inner_join(mov_df2_budg_sums) %>%
+  select(bigGenre, count_share, rev_share, pop_share, budg_share)
+\end{lstlisting}
+
+\begin{lstlisting}
+# pivoting-longer these joined tables
+mov_df_proportional_plot_df <- mov_df_proportional_plot_df %>%
+  pivot_longer(!bigGenre, names_to = "Film_Measure", values_to ="Share")
+
+mov_df_proportional_plot_df
+\end{lstlisting}
+
+\begin{lstlisting}
+## Visualizing shares
+
+# Rough sketch of genre proportions across the various measures
+mov_df_proportional_plot_df %>%
+  ggplot(aes(x = bigGenre, y = Share)) + geom_bar(stat='identity') + facet_wrap(~Film_Measure)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Linear correlations between Revenue and Popularity, by Genre
+
+# Final Viz: Linear corrs by genre
+corrsByGenre_PopVsRev <- mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity, color = bigGenre)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = lm, se = FALSE, color = "black", size = 0.2) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01,
+           inherit.aes = FALSE, aes(x = adjustedRev, y = popularity)) +
+  facet_wrap(~bigGenre) +
+  scale_x_continuous(breaks = 500000000 * (0:4), labels = c("0", "0.5", "1", "1.5", "2"),
+                     limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320)) +
+  guides(color = FALSE) +
+  labs(x = "Revenue ($billions)",
+       y = "Popularity (TMDB Score)",
+       title = "Correlations between Revenue and Popularity by Genre")
+
+corrsByGenre_PopVsRev
+\end{lstlisting}
+
+\begin{lstlisting}
+# RECOLORING: Linear corrs by genre
+# Important Animation genre has been too lightly colored in this scheme. But 
+# I've already recolored all the other visualizations...  :(
+
+corrsByGenre_PopVsRev <- mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity, color = bigGenre)) +
+  geom_point(alpha = 0.18) +
+  geom_smooth(method = lm, se = FALSE, color = "black", size = 0.2) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01,
+           inherit.aes = FALSE, aes(x = adjustedRev, y = popularity)) +
+  facet_wrap(~bigGenre) +
+  scale_color_manual(name = "Genre", values = top5_palette) +
+  scale_x_continuous(breaks = 500000000 * (0:4), labels = c("0", "0.5", "1", "1.5", "2"),
+                     limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320)) +
+  guides(color = FALSE) +
+  labs(x = "Revenue ($billions)",
+       y = "Popularity (TMDB Score)",
+       title = "Correlations between Revenue and Popularity by Genre")
+
+corrsByGenre_PopVsRev
+\end{lstlisting}
+
+\begin{lstlisting}
+# Popularity versus Revenue overall, and its density
+
+## This is a two-part visualization
+
+Part 1 - Popularity vs Revenue overall
+pop_v_adjRev <- mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) +
+  geom_point(alpha = 0.2) +
+  annotate("rect", xmin = 0, xmax = 300000000, ymin = 0, ymax = 125,
+           color = "cyan", fill = NA) +
+  geom_smooth(method = lm, se = FALSE, color = "red", size = 0.2) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01,
+           inherit.aes = FALSE, aes(x = adjustedRev, y = popularity), color = "red") +
+  scale_x_continuous(labels = label_comma()) + 
+  labs(title = "Popularity vs Revenue",
+       x = "Revenue ($)",
+       y = "Popularity (TMDB Score)")
+
+pop_v_adjRev
+
+# The light blue box indicates what area will be featured in the 2D-density plot
+# that follows.
+\end{lstlisting}
+
+\begin{lstlisting}
+# Part 2 - "Zooming in" with a 2D Density Plot
+pop_v_adjRev_zoomedUp <- mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) +
+  stat_density2d() +
+  geom_point(alpha = 0.08) +
+  annotate("rect", xmin = 0, xmax = 300000000, ymin = 0, ymax = 125,
+           color = "cyan", fill = NA) +
+  # scale_x_continuous(labels = label_comma())
+  scale_x_continuous(limits = c(0, 300000000),
+                     labels = label_comma()) +
+  scale_y_continuous(limits = c(0, 125)) + 
+  labs(title = "Zooming in on Popularity vs Revenue - A Density Plot",
+       x = "Revenue ($)",
+       y = "Popularity (TMDB Score)")
+
+pop_v_adjRev_zoomedUp
+\end{lstlisting}
+
+\begin{lstlisting}
+# Final Viz: Popularity versus Revenue overall, and its density
+comboPlot_popVsRev <- ggarrange(pop_v_adjRev, pop_v_adjRev_zoomedUp, nrow = 2)
+
+comboPlot_popVsRev
+\end{lstlisting}
+
+\begin{lstlisting}
+# Stacked Area Chart Redo
+# Creating a dedicated subset of data
+# Creating a df specific to this viz
+
+stackedArea_df <- mov_df2
+
+# Setting levels to my Genre field, so that the desired order will be reflected
+# by the area chart.
+
+# mov_df2_rev_sums
+
+stackedArea_df$bigGenre <- factor(stackedArea_df$bigGenre,
+                                  levels = c("Action", "Adventure", "Comedy",
+                                             "Drama", "Animation", "Other"))
+# Cutting df so that the oldest year is 2001
+
+stackedArea_df <- stackedArea_df %>%
+  filter(release_year >= 2001)
+\end{lstlisting}
+
+\begin{lstlisting}
+stackedArea_df2 <- stackedArea_df %>%
+  group_by(release_year, bigGenre) %>%
+  summarise(adjRevSum = sum(adjustedRev)) %>%
+  select(release_year, bigGenre, adjRevSum) %>%
+  arrange(release_year)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Recoloring and reordering area chart
+top5_palette <-  c("Action"="#94aeca", "Adventure"="#f7ba7e",
+                   "Comedy"="#cfaec6", "Drama"="#ed999a", "Animation"="#acd3d0",
+                   "Other"="#d5cfcd")
+
+plot_stackedArea_revByGen <- stackedArea_df2 %>%
+  ggplot(aes(x = release_year, y = adjRevSum, fill = bigGenre)) +
+  geom_area() +
+  scale_fill_manual(values = top5_palette, name = "Genre") +
+  labs(title = "Total Revenue of Top-Grossing Genres (2001-2015)",
+       y = "Revenue ($ billion)",
+       x = "Year") +
+  scale_y_continuous(breaks = 10000000000 * (0:3), labels = c("0", "10", "20", "30")) +
+  scale_x_continuous(breaks = seq(1, 2015, by=2)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+plot_stackedArea_revByGen
+\end{lstlisting}
+
+\begin{lstlisting}
+# Previous attempts and scratch visualizations
+
+# Final visualization of genre proportions across various measures
+mov_df_proportional_plot_df$bigGenre <-
+  factor(mov_df_proportional_plot_df$bigGenre,
+         levels = c('Other', 'Action', 'Adventure', 'Comedy', 'Drama', 'Animation'))
+
+mov_df_proportional_plot_df <- mov_df_proportional_plot_df %>%
+  mutate(Share_rnd = round(Share, 2))
+
+mov_df_proportional_plot_df %>%
+  filter(Film_Measure != "budg_share") %>%
+  ggplot(aes(fill = bigGenre, x = bigGenre, y = Share)) +
+  geom_bar(position="dodge", stat='identity') +
+  geom_text(aes(label = Share_rnd),
+            color = "white", size = 4.5,
+            vjust = 1.5, fontface = "bold") +
+  facet_wrap(~factor(Film_Measure,
+                     levels = c('count_share', 'rev_share', 'pop_share'),
+                     labels = c('Sample Count', 'Revenue', 'Popularity'))) +
+  scale_y_continuous(labels = scales::percent,
+                     limits = c(0, 0.3)) +
+  scale_x_discrete(guide = guide_axis(n.dodge = 3)) + 
+  scale_fill_brewer(name = "Genre", palette = "Set2") +
+  guides(fill = guide_legend(ncol = 6)) +
+  ggtitle("Genre Proportions of Several Measures") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 20, 
+                                  vjust = 2, face = "bold"),
+        legend.position="bottom",
+        legend.box = "horizontal",
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        strip.text = element_text(size = 16),
+        panel.grid.major.x = element_blank())
+\end{lstlisting}
+
+\begin{lstlisting}
+# 2D-Density plot specific to genre
+# I was coding this to be iterated through for each genre, eventually arranging
+# them together as six plots in one image. However, I decided against it,
+# because I thought it more informative to keep all the axes consistent (as 
+# facet_wrap does automatically.) 
+
+the_var = "Action"
+mov_df2 %>%
+  filter(bigGenre == the_var) %>%
+  
+  ggplot(aes(x = adjustedRev, y = popularity)) +
+  stat_density2d(aes(colour=..level..)) +
+  scale_x_continuous(labels = label_comma()) +
+  labs(title = the_var) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+\end{lstlisting}
+
+\begin{lstlisting}
+# sketching "corr by genre" viz: manually zooming in, away from outliers
+mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity, color = bigGenre, alpha = 0.05)) +
+  geom_point() +
+  facet_wrap(~bigGenre) +
+  scale_x_continuous(limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320))
+\end{lstlisting}
+
+\begin{lstlisting}
+# sketching "corr by genre" viz: Adding regression lines, final polishes
+mov_df2 %>%
+  # ggplot(aes(x = adjustedRev, y = popularity, color = bigGenre, alpha = 0.05)) +
+  # geom_point() +
+  ggplot(aes(x = adjustedRev, y = popularity, color = bigGenre)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = lm, se = FALSE, color = "black", size = 0.2) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01,
+           inherit.aes = FALSE, aes(x = adjustedRev, y = popularity)) +
+  facet_wrap(~bigGenre) +
+  scale_x_continuous(breaks = 500000000 * (0:4), labels = c("0", "0.5", "1", "1.5", "2"),
+                     limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320)) +
+  guides(color = FALSE) +
+  labs(x = "Revenue ($billions)",
+       y = "Popularity",
+       title = "Correlations between Revenue and Popularity by Genre")
+\end{lstlisting}
+
+\begin{lstlisting}
+## Desparate attempts at faceted density plots
+Part 1 - Levels only
+mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) +
+  stat_density2d(aes(colour=..level..)) +
+  facet_wrap(~bigGenre) +
+  scale_x_continuous(limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320))
+
+Part 2 - Levels, with faint points
+mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = adjustedBudget)) +
+  stat_density2d(aes(colour=..level..)) +
+  geom_point(color = "yellow", alpha = 0.02) +
+  scale_x_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(~bigGenre)
+
+Part 3 - Alpha tile-densities, plus points
+mov_df2 %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) + 
+  geom_point(aes(color = bigGenre)) +
+  stat_density2d(aes(alpha=..density..),
+                 geom="tile",
+                 contour=FALSE) +
+  facet_wrap(~bigGenre) +
+  scale_x_continuous(limits = c(0, 2000000000)) +
+  scale_y_continuous(limits = c(0, 320))
+\end{lstlisting}
+
+\begin{lstlisting}
+## Early Panel Plot
+
+# Horizontal panel plot: Popularity vs Revenue by Genre
+# I found it too wide for the popularity values to be decoded meaningfully, even
+# after removing several outliers of adjusted revenue. 
+
+mov_df_top_gens %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) + geom_point() + facet_grid(PrimaryGenre ~ .)
+
+
+mov_df_top_gens %>%
+  filter(adjustedRev < 2000000000) %>%
+  ggplot(aes(x = adjustedRev, y = popularity)) + geom_point() + facet_grid(PrimaryGenre ~ .)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Sankey drafts
+## Genre, Revenue Quartile, and Top 10 Production Companies
+### Note that this uses raw revenue values (without inflation adjustment.)
+### This work was done before inflation-adjustment was implemented.
+
+# Identifying prod. companies with top revenue sums
+# Identifying the 10 highest revenue-generating Production Companies
+top_10_prod_companies <- mov_df_top_gens %>%
+  dplyr::group_by(PrimaryProductionCompany) %>%
+  dplyr::summarise(tot_revenue = sum(revenue)) %>%
+  arrange(-tot_revenue) %>%
+  select(PrimaryProductionCompany) %>%
+  head(10)
+
+top_10_prod_companies$PrimaryProductionCompany
+
+
+# Narrowing dataset to include only records associated with these top-10-earning
+# production companies.
+mov_top_gens_and_prodCos <- mov_df_top_gens %>%
+  filter(PrimaryProductionCompany %in% top_10_prod_companies$PrimaryProductionCompany)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Binning revenue into quartiles - identifying break points
+genre_prodco_sankey_df <- mov_top_gens_and_prodCos %>%
+  select(PrimaryGenre, revenue, PrimaryProductionCompany)
+
+breaks_rev_qrts <- quantile(genre_prodco_sankey_df$revenue, c(0.25 * (0:4)))
+breaks_rev_qrts
+\end{lstlisting}
+
+\begin{lstlisting}
+# Binning revenue into quartiles - creating "revenueQuartile" attribute
+# Binning accordingly (somewhat roughly, so that my break values will be 
+# prettier to the eye)
+genre_prodco_sankey_df <- genre_prodco_sankey_df %>%
+  mutate(revenueQuartile = cut(revenue,
+                               breaks = c(0, 41000000, 101000000, 
+                                          217000000, 1850000000),
+                               labels = c("$0 - $41,000,000",
+                                          "$41,000,000 - $101,000,000",
+                                          "$101,000,000 - $217,000,000",
+                                          "$217,000,000 - $1,850,000,000"),
+                               include.lowest=TRUE)) %>%
+  select(PrimaryGenre, revenueQuartile, PrimaryProductionCompany)
+\end{lstlisting}
+
+\begin{lstlisting}
+# Creating Sankey of Genre, Rev Quartile, and Prod Co.
+# genre_prodco_sankey <- hchart(data_to_sankey(genre_prodco_sankey_df), "sankey", name = "Relating revenue to genre and production company")
+# 
+# genre_prodco_sankey <- genre_prodco_sankey %>%
+#   hc_title(text = "Revenue outcomes based on Genre and Production Company") %>%
+#   hc_subtitle(text = "Examining the distributions of genre and production 
+#               company for each quartile of revenue earned.")
+# 
+# genre_prodco_sankey
+
+sankeySeasons_df <- mov_top_gens_and_prodCos %>%
+  mutate(revenueQuartile = cut(revenue,
+                               breaks = c(0, 41000000, 101000000, 
+                                          217000000, 1850000000),
+                               labels = c("$0 - $41,000,000",
+                                          "$41,000,000 - $101,000,000",
+                                          "$101,000,000 - $217,000,000",
+                                          "$217,000,000 - $1,850,000,000"),
+                               include.lowest=TRUE)) %>%
+  select(PrimaryGenre, release_season, revenueQuartile)
+\end{lstlisting}
+
+\begin{lstlisting}
+seasonSankey <- hchart(data_to_sankey(sankeySeasons_df), "sankey", name = "Relating revenue to genre and season of release")
+
+seasonSankey <- seasonSankey %>%
+  hc_title(text = "Revenue outcomes based on Genre and Release Season") %>%
+  hc_subtitle(text = "Examining the distributions of genre and release season for each quartile of revenue earned.")
+
+seasonSankey
+
+# htmlwidgets::saveWidget(widget = seasonSankey, file = 'C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\genre-season_sankey.html')
+# # webshot::install_phantomjs()
+# webshot::webshot(url = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\genre-season_sankey.html",
+#                  file = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\genre-season_sankey.png" , delay = 5)
+# # knitr::include_graphics("genre-season_sankey.png")
+\end{lstlisting}
+
+\begin{lstlisting}
+season_genre_sankey_df <- mov_top_gens_and_prodCos %>%
+  mutate(revenueQuartile = cut(revenue,
+                               breaks = c(0, 41000000, 101000000, 
+                                          217000000, 1850000000),
+                               labels = c("$0 - $41,000,000",
+                                          "$41,000,000 - $101,000,000",
+                                          "$101,000,000 - $217,000,000",
+                                          "$217,000,000 - $1,850,000,000"),
+                               include.lowest=TRUE)) %>%
+  select(release_season, PrimaryGenre, revenueQuartile)
+\end{lstlisting}
+
+\begin{lstlisting}
+season_genre_Sankey <- hchart(data_to_sankey(season_genre_sankey_df), "sankey", name = "Relating revenue to genre and season of release")
+
+season_genre_Sankey <- season_genre_Sankey %>%
+  hc_title(text = "Season of Release, Genre, and Revenue Quartile") %>%
+  hc_subtitle(text = "Examining how release season, genre, and revenue quartile relate in terms of distribution.")
+
+season_genre_Sankey
+
+# htmlwidgets::saveWidget(widget = season_genre_Sankey, file = 'C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-revQ_sankey.html')
+# 
+# 
+# # webshot::install_phantomjs()
+# 
+# webshot::webshot(url = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-revQ_sankey.html",
+#                  file = "C:\\Users\\maxru\\OneDrive\\Documents\\DePaul MS Work\\DSC 465\\Homework\\HW_4\\season-genre-revQ_sankey.png" , delay = 5)
+# 
+# knitr::include_graphics("genre-season_sankey.png")
+\end{lstlisting}

@@ -1,0 +1,481 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[utf8]{lipsum, inputenc}
+\usepackage{multicol} % Load the multicol package
+\usepackage[margin=0.8in]{geometry}
+\usepackage{appendix}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{subcaption}
+\usepackage{subfigure}
+%\usepackage[hidelinks]{hyperref} %hidelinks
+\usepackage[colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue]{hyperref}
+\usepackage{float}
+% \usepackage{keywords}
+\usepackage{listings}
+\usepackage{adjustbox}
+\usepackage{color}
+
+
+\usepackage{fancyhdr}
+\newcommand{\insignia}{images/Depaul.png}
+% Page style settings
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\includegraphics[height=1cm]{\insignia}} % Replace '1cm' with the desired image height
+\lhead{} % If you want to add text or another image on the left side
+\fancyfoot[C]{\thepage} % Centered page number in the footer
+
+\setlength{\parskip}{10pt} % Change the value to your preferred spacings
+\input{listings-setup}
+
+\title{DSC 365 Final Project}
+\author{
+    George Tzimas \and 
+    Maxwell Ruther \and 
+    Gulbanu Madiyarova \and
+    Nitheesh Samiappan \and Rohith Reddy Patlolla \and 
+    Anwesh Ramesh
+    }
+\date{March 2024}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+    Our dataset includes variables such as Title, Runtime, Genre, Revenue, Budget, Profit, Director, Actor, Production Company, Awards, Oscar Awards, Season, Year, Release Date and etc.... Some of the Key variables for drawing conclusions are revenue, profit, genre, budget, director, actor, and awards. These variables provide insights into financial performance, popular genres, critical acclaim, and potential correlations between creative talents and movie success. 
+
+Movies have been a cornerstone of entertainment ever since their introduction in the beginning of the 20th century. From the early black-and-white films to the modern CGI blockbusters of today, they have changed and evolved through technological advancements and cultural changes. One thing that they have maintained throughout these years is the type of message and theme they are trying to disseminate to the audience. These themes and messages can be broadly categorized into \textbf{genres}, with each genre trying to impart various sentiments, perspectives, and emotional experiences to its audience.
+
+In this project, we will be exploring movies through the lens of genre in order to unveil what genres have had the biggest impact in terms of \textbf{revenue} and \textbf{popularity}. We will also take a look into temporal changes within the 21st century, focusing on the movies released between 2001 and 2015. The primary dataset is provided by Kaggle \cite{tmdb5000_2017}, although additional features were added either through the use of TMDB's API or through feature engineering.
+
+\section{Exploratory Data Analysis}
+The first stage of exploration involved looking over all of the main numeric features in the dataset and their distributions. One of our initial hypotheses was that some of these features may be correlated with each other, which could provide some valuable insight as to where to proceed from there.
+\begin{figure}[h!]
+\centering
+
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/eda/numeric_distributions.png}
+\label{fig:sub1}
+\caption{Distribution of numeric features.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.54\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/eda/corr_plot.png}
+\label{fig:sub2}
+\caption{Correlation plot of numeric features.}
+\end{subfigure}
+\begin{subfigure}[b]{0.5\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/eda/count_movie_genres.png}
+\label{fig:sub1}
+\caption{Movie count by genre.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/eda/mean_revenue_by_genre.png}
+\label{fig:sub2}
+\caption{Average revenue (non-inflation-adjusted) by genre.}
+\end{subfigure}
+\caption{Early stages of exploratory data analysis.}
+\label{fig:test}
+\end{figure}
+
+The relatively large positive correlation between popularity and revenue (0.65) as well as the non-uniformly distributed nature of average revenue by genre led us down the path of exploring all these different metrics in terms of genre, with the hope of unveiling some interesting insights.
+
+% Visualizations – for each visualization, show the image and explain what type it is and how
+% all the variables are mapped. Discuss how you refined it through your drafting process to
+% bring out patterns and relationships. Then explain how it fits into your analysis/story. 
+\section{Visualizations}
+
+\subsection{ Revenue by Genre, Broadly}
+
+Our first visualization is a horizontal bar chart that shows the average revenue for each genre. When viewing its \href{https://public.tableau.com/views/bar_chart_updated/BarChart?:language=en-US&publish=yes&:sid=&:display_count=n&:origin=viz_share_link}{interactive version}, one can hover the mouse over a bar to display the poster of the top-earning movie of that genre.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{images/final_drafts/genre_bar_chart_static.png}
+    \caption{Average revenue by movie genre from 2001 to 2015.}
+    \label{fig:figure_8}
+\end{figure}
+
+The bar chart was instrumental in giving us an initial sense of what movie genres might be the most successful (as well as some examples of specific films that might define that success.) We here favored averages instead of sums for the visualized measure of revenue, because the averages afford a better view of smaller genres' successes.
+
+Prominently featured are several of the highest-average earning genres: Adventure, Animation, Science Fiction, and Family. These become a special focus of our analysis later on, in a section on genres that thrive in the warmer months. 
+
+To further explore how revenue distributes by genre, we next analyzed it year-to-year. In the below \href{https://public.tableau.com/views/area_chart_updated/AreaChart?:language=en-US&:sid=&:display_count=n&:origin=viz_share_link}{stacked area chart}, yearly revenue sums are visualized in a a time series analysis. Five genres were the top-grossing of the observed period by quite some margin: Action, Adventure, Drama, Comedy, and Animation. We binned all other genres into "Other". This stacked area chart has the double utility of illustrating both how total revenue has changed annually, as well as part of how that revenue breaks down across genres.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{images/stacked_area_chart_revenues_by_yr.png}
+    \caption{Stacked area chart featuring revenue by year, emphasizing top-selling genres. The above categories are sorted in descending order of revenue total.}
+    \label{fig:figure_1}
+\end{figure}
+
+Action and Adventure are the super stars of the bunch. These are followed by Comedy and Drama, which are neck-and-neck. Animation earns the least of these, but does well to make it into this top 5 because it consist of far fewer films, as noted in our next graphic, the mosaic plot.
+
+The below mosaic plot is another time series piece, covering the same top genres as in area chart. Encoded in the width of these mosaic tiles is the number of films for that year.
+
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{images/nitheesh mosaic - genre distribution.png}
+    \caption{Mosaic plot showing the count of movies by genre from 2001 to 2015.}
+    \label{fig:figure_2}
+\end{figure}
+
+Its most striking takeaway might be that the distribution of genres stays pretty consistent throughout the period (save for 2007, when the share of "Other" genres briefly spikes.) Given our interest in how genre-specific revenue totals might change over time, this relative consistency of sample count was useful context in our analysis. The insight suggests that any jump in a genre-specific portion of a revenue total is unlikely to be a result of a jump in sample count of that genre's films. Instead, such a boost in genre's revenue might likelier owe to above-average success of its films.
+
+Other useful takeaways from this mosaic plot might be how Comedy and Drama form the biggest shares of the sample, though they are third and fourth in terms of their all-time shares of the revenue (behind Action and Adventure.) Also, first visualized here is the small sample size of Animation that was previously mentioned.
+
+
+\subsection{Identifying and examining seasonal boosts in some genres' revenues}
+
+We again take a look at revenue by genre over time, but now we instead focus on the month of the year in which films were released, leaving out the year. By scanning the below heatmap to visualize the revenue averages of many genres for each month all-time, one can easily identify patterns in this statistic. Most striking to us was how some genres appear to enjoy hot streaks in the warmer months, in Spring and Summer. We thus noted the best "warm season" genres as Adventure, Animation, Science Fiction, and Family.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{images/final_drafts/heatmap - avg rev.jpg}
+    \caption{Heatmap of average revenues by genre.}
+    \label{fig:figure_3}
+\end{figure}
+
+To start to dig into this phenomenon, we took the totals of sample count, revenue, and popularity for all summer releases all-time, then calculated the shares of those that our "warm season" genres enjoy. The shares are illustrated in the below bar chart, which puts these genres' shares of the various totals side-by-side for easy comparison.
+
+What we found aligned with the high-average streaks of the heatmap: these "warm season" genres enjoy outsize proportions of the Spring and Summertime revenue and popularity. For example, the share of popularity that Adventure enjoys is double its share of the sample count.
+
+To underscore the phenomenon with some contrast, we also featured the "Thriller" genre, which in the heatmap showed consistent revenue averages throughout all seasons. Its indifference to warmer months might well be shown here, as its revenue share is proportionally even with its count.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\textwidth]{images/genres_thrive_warmer_weather.png}
+    \caption{Genres observed in the preceding heatmap as having high average revenues during Spring and Summer are here showcased as having outsized shares of Revenue and Popularity in that warmer period. Thriller is not one of those genres, but is featured here beside the summer heavy-hitters contrast.}
+    \label{fig:figure_4}
+\end{figure}
+
+Soon we will dive into a more numerically gritty analysis of genre-level revenue, but first we take one last look at these Spring and Summer genres. In the above bar chart, we determined that these genres enjoy outsize shares of summertime revenue and popularity. But do these genres also enjoy higher rates of releasing a summer blockbuster?
+
+First, we define a blockbuster as a movie that places in the top quartile of revenue. Second, we divide films into "Cooler season" and "Warmer Season" bins specific to their genre. With those attributes created, we were able to make the below Sankey. Making this season attribute a subcategory of the genre (one might notice that the genre is named parenthetically in the season value) was an important step, as Sankey's might thrive when most the attributes are hierarchical. This hierarchical structure ensures that the rightmost attribute can be interpreted as an outcome, a conventional feature of Sankeys.
+
+Whether a genre enjoys a warm-season boost in blockbusting is illustrated by the how the blockbusting portions differ between its warmer and cooler season sections. For example, Adventure is shown to provide the biggest share of blockbusters of these genres. However, the proportion of blockbusters to "not"-busters doesn't substantially differ between the warmer and cooler seasons. So Adventure's blockbusting does not get a warm-season boost like its revenue and popularity shares did.
+
+In this vein, Science Fiction and Animation \textit{do} enjoy a blockbuster boost, while the Family genre might actually be negatively affected.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/final_drafts/summer_blockbuster_sankey.png}
+    \caption{Summer heavy-hitter genres don't necessarily show higher rates of blockbusting in the warmer seasons than in the cooler ones.}
+    \label{fig:figure_5}
+\end{figure}
+
+\subsection{Assessing correlation between revenue and popularity}
+
+For movies, earning high revenue means selling lots of tickets. In this section, we explore whether selling lots of tickets coincides with receiving popular acclaim. We do this by determining the linear correlation between revenue and popularity.
+
+An issue we encountered in this dataset was that the values of revenue were stubbornly concentrated in a certain area. We thought to remove outliers to get a better look at this area, but what we identified to be outliers felt too meaningful and too numerous to remove. To address this overplotting, we created two visualizations which each tackle the issue differently. Featured below is the first approach were we break the problem down by genre by creating faceted scatterplots. Each plot reflects one of the 5 top-grossing genres or "Other", as were visualized previously, and features a correlation value specific to that genre.
+
+The correlations vary widely here. For Animation, the correlation between revenue and popularity is very strong at 0.81 . This result aligns with what we've already determined about the Animation genre's outsize success. In contrast, Comedy shows the lowest correlation of these, 0.55 . This might align with how senses of humor might vary widely, person-to-person.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/OLD_Linear corrs betw rev and pop by genre.png}
+    \caption{Do higher revenues imply higher popularity scores? Maybe partly, but less than one might expect. And it varies a lot by genre.}
+    \label{fig:figure_6}
+\end{figure}
+
+Next is our second analysis of the linear correlation between revenue and popularity, looks at the data overall. No longer separating for genre, this linear correlation was determined to be 0.58 , a moderately positive correlation.
+
+In addition to assessing correlation, we here also examine the density of points that so vexed us in previous analyses. Leveraging the alpha value was not as helpful in the second scatteprlot as it had been in the first, so in the bottom half of the image, we have "zoomed in" on the area that contains the gross majority of points. This zooming in is done on the area indicated by the cyan rectangle, in the bottom-left of the upper plot. 
+
+It is in this area that the 2D-density plot for this same set of points is located. (This is why the second plot is also surrounded by a cyan rectangle; we seek to indicate that these rectangles portray the very same range of revenue and popularity.) Thus, this density plot informs us that the gross majority of films pull in less than \$200 million in revenue and show less than 40 for their TMDB popularity scores.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/overall rev and pop and with density.png}
+    \caption{Putting aside genre, what does the relationship between revenue and popularity look like? In our density plot, notice how incredible concentrated the points are in that area, which is a small portion of the upper plot.}
+    \label{fig:figure_7}
+\end{figure}
+
+\section{Analysis and Discussion}
+
+The main results of our analysis are the following:
+
+\begin{enumerate}
+    \item Despite being comprised of relatively few films, the Animation genre is in the top 5 for earning revenue. And its spring- and summertime share of the popularity scores is more than double double that of its sample count.
+    \item The average revenue across all genres is high in late Spring and early Summer, but this is especially so for the genres of Adventure, Animation, Family, and Science Fiction.
+    \begin{enumerate}
+        \item Though these genres might enjoy higher average revenues in that time, they do not all also enjoy higher rates of releasing hit movies.
+    \end{enumerate}
+    \item The Animation genre shows the strongest link between revenue and popularity, a strongly positive correlation of 0.81 . This is far stronger than the correlation of 0.58 shown in the greater dataset, which is only moderately positive.
+\end{enumerate}
+
+\bibliographystyle{apalike}
+\bibliography{bibliography}
+
+\appendix
+\section[A]{Appendix A: Individual Reports}
+
+\subsection{George Tzimas}
+\begin{itemize}
+  \item Performed the initial data cleaning process, transforming the dataset from JSON into a relational table.
+  \item Performed feature engineering by extracting relevant information from both csv files provided by Kaggle, and also appending new features through the use of the TMDB and OMDB APIs.
+  \item Created some preliminary visualizations of different aspects of the dataset to give us some ideas as to what direction we want to take this project towards.
+  \item As the group liaison, I was in charge of scheduling weekly meetings through Zoom to go over next steps for project milestones and/or directions for our initial drafts.
+  \item For the in-class presentation, I created interactive visualizations that could be directly embedded into PowerPoint.
+  \item Created the outlines and drafts for the project milestones and the final paper submission through overleaf
+\end{itemize}
+
+This project challenged me to incorporate many of the techniques learned in the class towards my visualizations. I found myself putting a lot more emphasis on the encoding methods used for each visualization, the visual appeal of the plots in terms of axes tick marks, axes labels, and legends where appropriate. Another valuable thing is the ability to criticize my own work as well as the work of my collaborators more effectively. In addition, coordinating group goals and delegating responsibilities has taught me a lot about what it takes to effectively work within the confines of a group and not on an individual basis. Finally, the challenge of creating a data-driven story from beginning to end has been great learning experience. 
+
+One of the most challenging and humbling aspects that I've learned through this project is how much material ends up being discarded as we go through all the stages from the initial drafting process to the final outputs. The amount of revision and adjustment needed to make everything cohesive and flow together has been eye-opening, and I think it is important to learn about it early on during the academic years so that you are prepared when pursuing a full-time career in an environment that requires team collaboration and meeting deadlines.
+
+% I've found this class to be very informative in terms of learning what data visualization is all about. Concepts such as data-to-ink ratio, visual clutter, and proper number of encodings per visualization type have changed the way I view and interpret visualizations at first glance. Another valuable things is the variety of more complex methods of visualizations, such as the horizon plot for temporal data, Bertin matrices for categorical, and especially spine/mosaic plots. 
+
+\begin{figure}[H]
+\centering
+
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/corr_plot.png}
+\label{fig:sub1}
+\caption{Correlation plot.}
+\end{subfigure}
+% \hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/numeric_distributions.png}
+\label{fig:sub2}
+\caption{Distribution plot.}
+\end{subfigure}
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/count_actors.png}
+\label{fig:sub1}
+\caption{Top 20 actors.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/count_directors.png}
+\label{fig:sub1}
+\caption{Top 20 directors.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/count_movie_genres.png}
+\label{fig:sub1}
+\caption{Top 20 movie genres.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/director_gender_genre_spine_plot.png}
+\label{fig:sub1}
+\caption{Gender proportions in actors.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/genre_gender_spine_plot.png}
+\label{fig:sub1}
+\caption{Gender proportions in directors.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/test_actor_gender.png}
+\label{fig:sub1}
+\caption{Statistical test on profit by actor gender.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/test_director_gender.png}
+\label{fig:sub1}
+\caption{Statistical test on profit by director gender.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/genres_budget_revenue_profit.png}
+\label{fig:sub1}
+\caption{Stacked bar chart of average budget, revenue, profit by genre.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/mean_revenue_by_genre.png}
+\label{fig:sub1}
+\caption{Average revenue by genre.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.33\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/george_viz/network_graph_actors.png}
+\label{fig:sub1}
+\caption{Network graph of actors and counts of collaborations.}
+\end{subfigure}
+
+\caption{Early drafts and EDA plots by George Tzimas.}
+\label{fig:test}
+\end{figure}
+\newpage
+\subsection{Maxwell Ruther}
+
+\begin{itemize}
+    \item Wrote the "Visualization" and "Analysis \& Discussion" sections of this report.
+    \item Fully reworked central visualizations to address a core lack of coherent data message. 
+    \item Actively collaborated with group liaison to meet each project milestone promptly and thoughtfully.
+    \item Persisted in engaging the group to determine and implement consistent steps in preprocessing, which included matters of time range, applying inflation adjustment,  feature engineering, and sharing the resulting dataset.
+
+\end{itemize}
+
+I contributed the Summer Genre barchart, the Sankey, and both scatterplots, which include the "faceted-by-genre" scatterplot  and the "overall" scatterplot + 2D-density plot. Relating to the scatterplots, I thank Nitheesh for his work as our scatterplot pioneer. He authored the scatterplot from our in-person presentation, which drew interest and rich feedback that substantially informed my design.
+
+My role on the team was to connect visualizations when possible, and draft new ones (intermediaries, ideally) when it wasn't. In a similar vein of keeping things connected, I asserted the importance of inconvenient tasks that bore crucially on the consistency of our visualizations. One such example is when I implemented adjustment for inflation, shared that new dataset, and advocated its adoption. Another is when I updated and reran some of the final visualizations to improve the consistency of their color-coding. (I regret that I couldn't figure out how to do this with my Sankey.)
+
+I learned a lot about data visualization in this project, particularly that it's much harder than I realized to visualize with proper intentionality. To give an example: our heatmap of average revenues revealed that some movie genres are particularly successful in the summer. Finding this interesting (and also following some helpful milestone guidance) I sought to drill down on this pattern and visualize it. But somehow, instead of thinking to simply visualize the averages that I was interested in, I went about it in a roundabout way. I fooled myself into thinking it clever to illustrate the genres' shares of count and revenue, then demand the viewer to divide the latter bar by the former. It wasn't until days later, too late, that I realized that I had sidestepped what I truly meant to communicate, that I could have directly plotted the averages, the values that motivated the whole endeavor. But I had been too taken with my own cleverness or something to realize that straightforward option. Intentional visualization had totally eluded me.
+
+It's my impression that this mistake is tied to the creative process in general. That the challenge of getting out of one's own head is intrinsic to the exercise. But luckily I do know that there are helpful tricks for this, particularly one that was mentioned in lecture: hand drawing the visual first, to sketch it out and see if it still makes sense on paper. So in future projects where I use these data visualization skills we've learned, I'm going to work harder to resist the temptation to immediately run ggplot over and over, and instead reach for the pencil.
+
+\newpage
+\subsection{Gulbanu Madiyarova}
+\begin{itemize}
+  \item Worked individually and crafted exploratory visuals during the exploration phase.
+  \item Actively contributed to group discussions, providing my insights.
+  \item Specifically focused on exploring innovative heatmap visualizations.
+\end{itemize}
+
+This class was highly informative, beginning with the basic exploration phase of data and progressing to the creation of exceptional visuals tailored to the audience's needs. I've gained insight into identifying clutter and avoiding being misled by visuals with misleading axes. Additionally, concepts such as data-to-ink ratio and optimal encoding numbers per visual have been particularly helpful and have become something I enjoy in everyday life.
+
+Participating in class discussions allowed me to share various visuals and provide feedback, enabling me to explore different types of visuals available and discuss their strong and weak points, which I found enjoyable.
+
+We devoted significant time to our team, working on the final project. We selected the data we wanted to explore, learned different cleaning tools, and determined the direction we wanted to explore in our project. Collaborating with my teammates on the final project was a highlight, as we exchanged ideas, shared knowledge, and reached common conclusions together.
+
+
+\subsection{Nitheesh Samiappan}
+\textbf{Visualization Techniques and Rich Data Displays:}
+\begin{itemize}
+    \item Created Bar charts which compared genres with total revenue and awards, identifying top-performing genres and those receiving critical acclaim.
+    \item Scatter plots visualized the revenue-budget relationship, grouped by genre, revealing potential correlations and outliers.
+    \item Mosaic plots explored the distribution and associations between genres and other categorical variables like production companies or directors, uncovering potential patterns or dependencies.
+    \item The combination of these techniques provided a multi-layered, comprehensive view, enabling the exploration of financial performance, critical reception, genre trends, and success factors through interactive and dynamic visualizations.
+    \end{itemize}
+\textbf{Design Considerations, Interactivity, and Complementary Techniques:}
+\begin{itemize}
+    \item Utilized effective design elements, including hue colors with reduced opacity for scatter plots, log scales for data point distribution, and the viridis color palette for mosaic plots.
+    \item Incorporated interactivity in scatter plots, allowing users to interact with individual data points, view movie titles and details, and display trend lines for each genre.
+    \item The bar charts, scatter plots, and mosaic plots complemented each other, displaying different aspects of the data and providing a comprehensive view of financial success, critical acclaim, genre trends, and potential success factors.
+    \end{itemize}
+\textbf{Conclusions, Further Analysis:}
+\begin{itemize}
+    \item The visualizations enable conclusions about top-performing genres, genre-specific revenue-budget correlations, and potential genre-company or director associations.
+    \item Statistical techniques like regression analysis, cluster analysis, or time series forecasting could further explore relationships and validate hypotheses generated from the visualizations.
+  \end{itemize}
+\textbf{Learning Experience:}
+\begin{itemize}
+    \item Worked on various visualizations, such as bar charts, mosaic plots, and scatter plots, which provided me with valuable insights on how to enhance the visualizations for better comprehension. 
+    \item I learned a great deal about effectively utilizing axis ranges and creating quadrants in scatter plots for improved plot interpretation. As part of a team, I gained a better understanding of my visualizations through constant review and feedback from my teammates, which proved to be an enriching learning experience.
+    \item Additionally, I got to learn about how to use R Studio and Tableau to create proper and neat visualizations for complex and large datasets, as well as different color scales to use for effective visual communication. 
+    \item Participating in discussions helped me identify and rectify errors and mistakes, further contributing to my learning journey.
+    \end{itemize}
+
+\begin{figure}[H]
+\centering
+
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{Comparison of Revenue and Total awards by Genre.png}
+\label{fig:sub1}
+\caption{Bar Chart of Genre's revenue and awards}
+\end{subfigure}
+% \hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{Screenshot 2024-03-19 210856.png}
+\label{fig:sub1}
+\caption{Scatter plot of top genre movies with revenue and budge.}
+\end{subfigure}
+% \hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{Screenshot 2024-03-20 1828101.png}
+\label{fig:sub1}
+\caption{Top genre movies with revenue and budget.}
+\end{subfigure}
+% \hfill
+\begin{subfigure}[b]{0.32\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{Screenshot 2024-03-19 220920.png}
+\label{fig:sub1}
+\caption{Quadrant Scatter plot.}
+\end{subfigure}
+% \hfill
+\caption{Early drafts}
+        \label{fig:test}
+\end{figure}
+\newpage
+\subsection{Rohith Reddy Patlolla}
+\begin{itemize}
+    \item  I produced some creative visualizations with the goal of identifying patterns in the overall revenue of the most popular genres throughout a given period (1974-2013).
+    \item Created side-by-side bar charts that contrasted revenue and budget for the main genre and the lead actor's gender, providing a detailed insight of the financial aspects and casting decisions in the film business.
+    \item Actively participated in group discussions, offering insights and suggestions.
+    \item Worked actively with the team to make sure that project goals were reached properly and on time, displaying a dedication to the project's accomplishment.
+    \item By combining all these visualization techniques, the project's altogether influence was increased through interactive and dynamic visualizations to offer a multi-layered and thorough picture of variables like financial performance, critical reception, genre trends, and success.
+\end{itemize}
+
+This project provided me with a great learning opportunity, allowing me to apply a number of visualization techniques learnt during the course. I focused the significance of all aspects while focusing on encoding techniques and improving visual appeal. Learning how to effectively collaborate with others, including assigning responsibilities and managing group goals, was a big takeaway from this experience. Challenges like making sure that visualization design has clearly brought attention to the significance of intent and clear communication. With teamwork and practical experience using programs like R Studio and Tableau, I improved my ability to produce powerful visuals. Considering all things,this project has improved my understanding of data visualization and prepared me for more research in the area.
+
+\begin{figure}[H]
+\centering
+
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{rohith/1.png}
+\label{fig:sub1}
+\caption{Side-by-side bar chart of budget and revenue.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{rohith/2.png}
+\label{fig:sub1}
+\caption{Area chart of revenue over time.}
+\end{subfigure}
+% \hfill
+% \hfill
+\caption{Early drafts}
+        \label{fig:test}
+\end{figure}
+
+
+\newpage
+\subsection{Anwesh Ramesh}
+\begin{itemize}
+    \item Worked in crafting explanatory and exploratory visuals.
+    \item Crafted Bar charts, Line Charts and Area Charts.
+    \item Actively participated in group reviews and discussions.
+    \item Aided in  creating Mosaic Plots for gender proportion for respective genres. 
+    \item Created Interactive visuals with calculated fields for highlight actions.
+    \end{itemize}
+I appreciate the in-depth teachings I received throughout this course, which enabled me to understand and incorporate the various methods, techniques, and the power in visual representation of data. The essential takeaways were towards understanding the audience and tailoring the visualizations accordingly; and significance of storytelling by crafting the narrative. 
+
+Additionally, from rich feedback and group reviews I learned a lot about polishing the visualizations- encoding, editing and formatting axes, colour choice, legends, LOD expressions for calculating and transforming fields has been a very challenging and informative industrial experience while working as part of the team.
+
+Overall, the course has been instrumental in shaping my approach to presenting data effectively in my project. By applying the principles and techniques learned, I was able to create rich, informative, polished visualizations and interactive dashboards that not only showcase my results but also facilitate understanding and decision-making for audience.
+
+
+
+\section{Appendix B: Code}
+\subsection{Python}
+\input{python-code}
+\subsection{R}
+\input{r-code}
+
+\end{document}
