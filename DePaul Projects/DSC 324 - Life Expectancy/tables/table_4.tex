@@ -1,0 +1,37 @@
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{graphicx}
+% \usepackage[table,xcdraw]{xcolor}
+% If you use beamer only pass "xcolor=table" option, i.e. \documentclass[xcolor=table]{beamer}
+% \usepackage[normalem]{ulem}
+% \useunder{\uline}{\ul}{}
+\begin{table}[h!]
+\resizebox{\textwidth}{!}{%
+\renewcommand{\arraystretch}{2} % Increase row spacing
+% \fontsize{8}{10}\selectfont % Set font size
+\large
+\begin{tabular}{|cc|cccc|}
+\hline
+\rowcolor[HTML]{CCCCCC} 
+\multicolumn{2}{|c|}{\cellcolor[HTML]{CCCCCC}}                                                                                             & \multicolumn{4}{c|}{\cellcolor[HTML]{CCCCCC}\textbf{Life Expectancy/ Population}}                                                                                                                                                                        \\ \cline{3-6} 
+\rowcolor[HTML]{CCCCCC} 
+\multicolumn{2}{|c|}{\multirow{-2}{*}{\cellcolor[HTML]{CCCCCC}{\ul \textbf{CCA Results:}}}}                                                & \multicolumn{1}{c|}{\cellcolor[HTML]{CCCCCC}\textbf{\#CVs}} & \multicolumn{1}{c|}{\cellcolor[HTML]{CCCCCC}\textbf{Important X Variables}} & \multicolumn{1}{c|}{\cellcolor[HTML]{CCCCCC}\textbf{Important Y Variables}} & \textbf{Canonical Correlation} \\ \hline
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              & Developed                    & \multicolumn{1}{c|}{0}                                      & \multicolumn{1}{c|}{N/A}                                                    & \multicolumn{1}{c|}{N/A}                                                    & N/A                            \\ \cline{2-6} 
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Income Comp (0.96)}}                            & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Schooling (0.84)}}                              & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\multirow{-4}{*}{\cellcolor[HTML]{EFEFEF}\textbf{X Variates 1: Lifestyle Choices}}}    & \multirow{-3}{*}{Developing} & \multicolumn{1}{c|}{\multirow{-3}{*}{1}}                    & \multicolumn{1}{c|}{\textbf{Adult Mortality (-0.78)}}                       & \multicolumn{1}{c|}{\multirow{-3}{*}{Life Expectancy (0.99)}}               & \multirow{-3}{*}{0.91}         \\ \hline
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Under 5 Deaths (-0.98)}}                        & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Infant Deaths (-0.87)}}                         & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              & \multirow{-3}{*}{Developed}  & \multicolumn{1}{c|}{\multirow{-3}{*}{1}}                    & \multicolumn{1}{c|}{\textbf{Measles (-0.75)}}                               & \multicolumn{1}{c|}{\multirow{-3}{*}{Population (-0.98)}}                   & \multirow{-3}{*}{0.92}         \\ \cline{2-6} 
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Measles (-0.99)}}                               & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Infant Deaths (-0.84)}}                         & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\multirow{-6}{*}{\cellcolor[HTML]{EFEFEF}\textbf{X Variates 2: Children’s Mortality}}} & \multirow{-3}{*}{Developing} & \multicolumn{1}{c|}{\multirow{-3}{*}{1}}                    & \multicolumn{1}{c|}{\textbf{Under 5 Deaths (-0.80)}}                        & \multicolumn{1}{c|}{\multirow{-3}{*}{Population (-0.99)}}                   & \multirow{-3}{*}{0.88}         \\ \hline
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              & Developed                    & \multicolumn{1}{c|}{0}                                      & \multicolumn{1}{c|}{N/A}                                                    & \multicolumn{1}{c|}{N/A}                                                    & N/A                            \\ \cline{2-6} 
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Polio (0.91)}}                                  & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\cellcolor[HTML]{EFEFEF}}                                                              &                              & \multicolumn{1}{c|}{}                                       & \multicolumn{1}{c|}{\textbf{Diphtheria (0.87)}}                             & \multicolumn{1}{c|}{}                                                       &                                \\ \cline{4-4}
+\multicolumn{1}{|c|}{\multirow{-4}{*}{\cellcolor[HTML]{EFEFEF}\textbf{X Variates 3: Immunizations}}}        & \multirow{-3}{*}{Developing} & \multicolumn{1}{c|}{\multirow{-3}{*}{1}}                    & \multicolumn{1}{c|}{\textbf{Hepatitis B (0.78)}}                            & \multicolumn{1}{c|}{\multirow{-3}{*}{Life Expectancy (1.0)}}                & \multirow{-3}{*}{0.53}         \\ \hline
+\end{tabular}%
+}
+\caption{Results of the Canonical Correlation Analysis.}
+\label{tab:table_4}
+\end{table}

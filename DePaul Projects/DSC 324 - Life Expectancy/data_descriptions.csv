@@ -1,0 +1,23 @@
+Feature,Description,Data Type
+country,Country name,String
+year,Year of data collection,Numeric
+status,Developing or developed,String
+life_expectancy,Life expectancy age in years,Numeric
+adult_mortality,Adult Mortality Rates of both sexes (probability of dying between 15 and 60 years per 1000 population),Numeric
+infant_deaths,Number of Infant Deaths per 1000 population,Numeric
+alcohol,"Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol)",Numeric
+percentage_expenditure,Expenditure on health as a percentage of Gross Domestic Product per capita(%),Numeric
+hepatitis_b,Hepatitis B (HepB) immunization coverage among 1-year-olds (%),Numeric
+measles,Measles - number of reported cases per 1000 population,Numeric
+bmi,Average Body Mass Index of entire population,Numeric
+under-five_deaths,Number of under-five deaths per 1000 population,Numeric
+polio,Polio (Pol3) immunization coverage among 1-year-olds (%),Numeric
+total_expenditure,General government expenditure on health as a percentage of total government expenditure (%),Numeric
+diphtheria,Diphtheria tetanus toxoid and pertussis (DTP3) immunization coverage among 1-year-olds (%),Numeric
+hiv/aids,Deaths per 1 000 live births HIV/AIDS (0-4 years),Numeric
+gdp,Gross Domestic Product per capita (in USD),Numeric
+population,Population of the country,Numeric
+thinness__1-19_years,Prevalence of thinness among children andadolescents for Age 10 to 19 (%),Numeric
+thinness_5-9_years,Prevalence of thinness among children for Age 5 to 9(%),Numeric
+income_composition_of_resources,Human Development Index in terms of income composition of resources (index ranging from 0 to 1),Numeric
+schooling,Number of years of Schooling (years),Numeric

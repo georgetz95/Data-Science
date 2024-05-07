@@ -1,0 +1,48 @@
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{graphicx}
+% \usepackage[table,xcdraw]{xcolor}
+% If you use beamer only pass "xcolor=table" option, i.e. \documentclass[xcolor=table]{beamer}
+\begin{table}[h!]
+\resizebox{\textwidth}{!}{%
+\renewcommand{\arraystretch}{1.5} % Increase row spacing
+\fontsize{12}{14}\selectfont % Set font size
+\begin{tabular}{|c|l|c|}
+\hline
+\rowcolor[HTML]{CCCCCC} 
+\textbf{Categories}                                                   & \multicolumn{1}{c|}{\cellcolor[HTML]{CCCCCC}\textbf{Variables}} & \textbf{Sub-logistic model Pr(\textgreater{}|z|)} \\ \hline
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Life Expectancy}                                        & \textbf{9.29e-09}                                 \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Alcohol Consumption}                                    & \textbf{\textless 2e-16}                          \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & BMI                                                             & 0.248193                                          \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{GDP per capita}                                         & \textbf{0.022756}                                 \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & Log(Population)                                                 & 0.684715                                          \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\multirow{-6}{*}{\cellcolor[HTML]{D9D9D9}\textbf{Socioeconomics}}     & Schooling                                                       & 0.000102                                          \\ \hline
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Adult Mortality}                                        & \textbf{\textless 2e-16}                          \\ \cline{2-3} 
+\cellcolor[HTML]{D9D9D9}                                              & Infant Deaths                                                   & Not included due to perfect separation            \\ \cline{2-3} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Measles}                                                & \textbf{0.003314}                                 \\ \cline{2-3} 
+\cellcolor[HTML]{D9D9D9}                                              & Under-five Deaths                                               & Not included due to perfect separation            \\ \cline{2-3} 
+\multirow{-5}{*}{\cellcolor[HTML]{D9D9D9}\textbf{Mortality}}          & HIV.AIDS Deaths                                                 & Not included due to perfect separation            \\ \hline
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & Percentage Expenditure                                          & 0.283                                             \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & Total Expenditure                                               & 0.538                                             \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Thinness 10-19 Years}                                   & \textbf{2.35e-09}                                 \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\cellcolor[HTML]{D9D9D9}                                              & Thinness 5-9 Years                                              & Not included due to high correlation              \\ \cline{2-3} 
+\rowcolor[HTML]{EFEFEF} 
+\multirow{-5}{*}{\cellcolor[HTML]{D9D9D9}\textbf{Health Development}} & \textbf{Income Composition of Resources}                        & \textbf{\textless 2e-16}                          \\ \hline
+\cellcolor[HTML]{D9D9D9}                                              & Hepatitis B                                                     & 0.597                                             \\ \cline{2-3} 
+\cellcolor[HTML]{D9D9D9}                                              & \textbf{Polio}                                                  & \textbf{1.52e-12}                                 \\ \cline{2-3} 
+\multirow{-3}{*}{\cellcolor[HTML]{D9D9D9}\textbf{Immunization}}       & Diphtheria                                                      & Not included due to high correlation              \\ \hline
+\end{tabular}%
+}
+\caption{Table of results from logistic regression analysis.}
+\label{tab:table_2}
+\end{table}
