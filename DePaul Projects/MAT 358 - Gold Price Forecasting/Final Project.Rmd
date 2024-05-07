@@ -1,0 +1,212 @@
+---
+title: "Final Project"
+author: "George Tzimas"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(astsa)
+library(tseries)
+library(forecast)
+library(dplyr)
+library(zoo)
+library(ggplot2)
+library(xtable)
+source('examine.mod.R')
+```
+
+Loading the dataset
+
+```{r}
+df <- read.csv('gold_price_data.csv')
+df$Date <- as.POSIXct(df$Date)
+head(df)
+```
+
+```{r}
+cutoff_date <- as.Date("1979-01-01")
+df2 <- df %>% filter(Date >= cutoff_date)
+head(df2)
+```
+
+```{r}
+zoo_data <- zoo(df2$Value, order.by=df2$Date)
+
+# Aggregate data monthly
+monthly_data <- aggregate(zoo_data, as.yearmon, mean)  # Replace 'mean' with your function
+
+# Convert back to dataframe
+monthly_df <- data.frame(date = index(monthly_data), value = coredata(monthly_data))
+monthly_df
+```
+
+```{r}
+ts_data <- ts(monthly_df$value, frequency=12, start=c(1979,1))
+head(ts_data)
+```
+
+```{r}
+png("data_plot.png", width=800, height=600, res=100)
+tsplot(ts_data, main="Value of Gold from 1979 to 2020", xlab='Time', ylab='Value', lw=2)
+axis.POSIXct(1, at=seq(from=min(df$Date), to=max(df$Date), by="5 years"), format="%Y")
+dev.off()
+```
+
+```{r}
+diff_x <-diff(ts_data,differences = 1)
+head(diff_x)
+```
+
+```{r}
+png("diff_plot.png", width=800, height=600, res=100)
+tsplot(diff_x, main="Time Series Data after First-Order Differencing", xlab="Time", ylab="Difference")
+dev.off()
+```
+
+```{r}
+adf.test(diff_x)
+```
+
+```{r}
+png("acf_pacf_plot.png", width=800, height=600, res=100)
+astsa::acf2(as.numeric(diff_x), max.lag=20, main=expression(paste("Estimated ACF & PACF plots for ", x[t] - x[t-1])))
+dev.off()
+```
+
+### ARIMA(1,1,0)
+
+```{r}
+png('arima_110.png', width=800, height=600, res=100)
+arima.110 <- sarima(as.numeric(ts_data), p=1, d=1, q=0)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.110, 1, 1, 0)
+```
+
+### ARIMA(2,1,0)
+
+```{r}
+png('arima_210.png', width=800, height=600, res=100)
+arima.210 <- sarima(as.numeric(ts_data), p=2, d=1, q=0)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.210, 2, 1, 0)
+```
+
+### ARIMA(3,1,0)
+
+```{r}
+png('arima_310.png', width=800, height=600, res=100)
+arima.310 <- sarima(as.numeric(ts_data), p=3, d=1, q=0)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.310, 3, 1, 0)
+```
+
+### ARIMA(0,1,1)
+
+```{r}
+png('arima_011.png', width=800, height=600, res=100)
+arima.011 <- sarima(as.numeric(ts_data), p=0, d=1, q=1)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.011, 0, 1, 1)
+```
+
+### ARIMA(0,1,2)
+
+```{r}
+png('arima_012.png', width=800, height=600, res=100)
+arima.012 <- sarima(as.numeric(ts_data), p=0, d=1, q=2)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.012, 0, 1, 2)
+```
+
+### ARIMA(2,1,1)
+
+```{r}
+png('arima_211.png', width=800, height=600, res=100)
+arima.211 <- sarima(as.numeric(ts_data), p=2, d=1, q=1)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.211, 2, 1, 1)
+```
+
+### ARIMA(1,1,1)
+
+```{r}
+png('arima_111.png', width=800, height=600, res=100)
+arima.111 <- sarima(as.numeric(ts_data), p=1, d=1, q=1)
+dev.off()
+```
+
+```{r}
+examine.mod(arima.111, 1, 1, 1)
+```
+
+```{r}
+data.frame(Model=c("ARIMA(1,1,0)", "ARIMA(2,1,0)", "ARIMA(3,1,0)", "ARIMA(0,1,1)", "ARIMA(0,1,2)", "ARIMA(2,1,1)", "ARIMA(1,1,1)"), 
+           AIC=c(arima.110$ICs[1], arima.210$ICs[1], arima.310$ICs[1], arima.011$ICs[1], arima.012$ICs[1], arima.211$ICs[1], arima.111$ICs[1]),
+           AICc=c(arima.110$ICs[2], arima.210$ICs[2], arima.310$ICs[2], arima.011$ICs[2], arima.012$ICs[2], arima.211$ICs[2], arima.111$ICs[2]),
+           BIC=c(arima.110$ICs[3], arima.210$ICs[3], arima.310$ICs[3], arima.011$ICs[3], arima.012$ICs[3], arima.211$ICs[3], arima.111$ICs[3]))
+```
+
+```{r}
+xtable(data.frame(Model=c("ARIMA(1,1,0)", "ARIMA(2,1,0)", "ARIMA(3,1,0)", "ARIMA(0,1,1)", "ARIMA(0,1,2)", "ARIMA(2,1,1)"), 
+           AIC=c(arima.110$ICs[1], arima.210$ICs[1], arima.310$ICs[1], arima.011$ICs[1], arima.012$ICs[1], arima.211$ICs[1]),
+           AICc=c(arima.110$ICs[2], arima.210$ICs[2], arima.310$ICs[2], arima.011$ICs[2], arima.012$ICs[2], arima.211$ICs[2]),
+           BIC=c(arima.110$ICs[3], arima.210$ICs[3], arima.310$ICs[3], arima.011$ICs[3], arima.012$ICs[3], arima.211$ICs[3])), digits=6)
+```
+
+```{r}
+xtable(arima.110$ttable)
+xtable(arima.210$ttable)
+xtable(arima.310$ttable)
+xtable(arima.011$ttable)
+xtable(arima.012$ttable)
+xtable(arima.211$ttable)
+xtable(arima.111$ttable)
+```
+
+```{r}
+xtable(t(data.frame(arima.110$ICs) %>% mutate(Value=arima.110.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.210$ICs) %>% mutate(Value=arima.210.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.310$ICs) %>% mutate(Value=arima.310.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.011$ICs) %>% mutate(Value=arima.011.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.012$ICs) %>% mutate(Value=arima.012.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.211$ICs) %>% mutate(Value=arima.211.ICs) %>% select(Value)), digits=6)
+xtable(t(data.frame(arima.111$ICs) %>% mutate(Value=arima.111.ICs) %>% select(Value)), digits=6)
+```
+
+```{r}
+forecast <- sarima.for(ts_data, n.ahead=5, p=2, d=1, q=1, main='Forecasting 5 Month Ahead w/ ARIMA(2,1,1)')
+forecast
+```
+
+```{r}
+pred_x <- as.numeric(ts_data) - resid(arima.211$fit)
+
+tsplot(as.numeric(ts_data), ylab=expression(x[t]), type="o", main="Comparison of Observed and Predicted Values")
+lines(pred_x, col="#D14138", type="o", pch=17, lw=1) 
+legend("topleft", legend=c("Observed", "Forecast"), lty=c("solid", "solid"), col=c("black", "red"), pch=c(1, 17), bty="n")
+```
+
+```{r}
+library(knitr)
+purl("Final Project.Rmd", output = "final_project.R")
+```

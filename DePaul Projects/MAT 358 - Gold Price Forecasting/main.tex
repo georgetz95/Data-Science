@@ -1,0 +1,327 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[utf8]{lipsum, inputenc}
+\usepackage{multicol} % Load the multicol package
+\usepackage[margin=0.8in]{geometry}
+\usepackage{appendix}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{subcaption}
+\usepackage{subfigure}
+%\usepackage[hidelinks]{hyperref} %hidelinks
+\usepackage[colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue]{hyperref}
+\usepackage{float}
+\usepackage{keywords}
+\usepackage{listings}
+\usepackage{color}
+\input{listings-setup.tex}
+
+
+\usepackage{fancyhdr}
+\newcommand{\insignia}{images/Depaul.png}
+% Page style settings
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\includegraphics[height=1cm]{\insignia}} % Replace '1cm' with the desired image height
+\lhead{} % If you want to add text or another image on the left side
+\fancyfoot[C]{\thepage} % Centered page number in the footer
+
+\setlength{\parskip}{10pt} % Change the value to your preferred spacings
+
+\title{Gold Price Forecasting}
+\author{George Tzimas \and Nora Roe }
+\date{March 2024}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    In this in-depth exploration, we employ various time series models with the goal of predicting future gold prices based on previous time points. After transforming the dataset into monthly intervals, we test various models and arrive at ARIMA(2,1,1) after evaluating all prospective models. The model managed to capture the underlying trends, although it is crucial to consider the model's inherent constraints interpreting these forecasts, as gold prices tend to fluctuate in tandem with global market indicators.
+\end{abstract}
+\keywords{time series, gold price prediction, ARIMA, forecasting}
+\section{Introduction}
+Gold is a precious metal that has been used and traded throughout human history. It has been used throughout history for a diverse range of purposes, such as jewelry, coins, idols of worship and general decorative objects. Its multifaceted roles have kept it as an invaluable commodity throughout history to the present day. In the modern world of global finance, it is an important asset that is traded extensively, influencing and being influenced by the world's economic health, currency stability, and appetite for precious metals.
+
+Our investigation will delve into historical prices of gold, aiming to capture insights and trends from its past behavior to forecast future trajectories. Utilizing dataset uploaded on Kaggle \cite{gold_price_dataset_2020}, which was originally scraped from Quandl, a platform that provides users with economic, financial and alternative datasets, we will study past trends and attempt to create a time series model that captures the underlying trends and is able to accurately predict future values.
+
+\section{Adjusting Time Intervals}
+The original dataset is composed of data points collected over a period spanning from 1970 to 2020. During the initial phase, from 1970 until 1978, the data was aggregated and recorded on a quarterly basis. Starting from 1979 onwards, the dataset begins to include multiple monthly entries for multiple days. This unstructured nature of the time points requires some form of aggregation for constant time points. We chose to remove all entries prior to 1979 and then aggregate the remaining data in a monthly form. This will provide internal temporal consistency and structure to the dataset that will help with creating time series models.
+
+\section{Checking Stationarity}
+The next step in our model-building process is to check whether our time series data is stationary. Most statistical time series models assume that the data is stationary over time with mean and variance constant over time.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/data_plot.png}
+    \caption{Value of gold from the first quarter of 1970 through the last quarter of 2020.}
+    \label{fig:figure_1}
+\end{figure}
+
+We can see that the data is not stationary, since the mean and variance are not constant over time. In order to fit a time series model, we need to make the dataset stationary first. There are several techniques that can be used to achieve this. The most common technique is taking first order differencing. This technique involves computing the difference between consecutive observations in the series, effectively focusing on the changes between periods rather than the actual values themselves.
+$$\Delta X_t = X_t - X_{t-1}$$
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/diff_plot.png}
+    \caption{Dataset after taking first-order differencing.}
+    \label{fig:figure_2}
+\end{figure}
+
+\newpage
+After differencing the dataset, it seems that we have achieved stationarity. The mean and variance seem to be constant over time with no extreme fluctuations. However, it is important to not only rely on visual inspection but also to perform statistical tests to confirm stationarity. One of the most common statistical tests for stationarity is the Augmented Dickey-Fuller (ADF) Test. 
+
+
+$H_0$: Data is non-stationary.
+$H_a$: Data is stationary.
+
+
+\input{tables/adf_test}
+
+With a test statistic of -7.0536 and a p-value of 0.01, we have strong evidence to reject the null hypothesis, indicating that the differenced dataset is stationary.
+
+Next we will be plotting the Autocorrelation Function (ACF) and the Partial Autocorrelation Function (PACF) for our first-differenced dataset. This will guide us in selecting the most appropriate model for this dataset.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/acf_pacf_plot.png}
+    \caption{ACF and PACF plot for the first-differenced dataset.}
+    \label{fig:figure_3}
+\end{figure}
+
+These autocorrelation plots tell us the kind of models to choose from for the time series data. For the ACF plot, lag 1 is significant, suggesting that an MA(1) component might be significant for a future model. For the PACF plot, both lag 1 and 2 are significant, suggesting that AR(1) and AR(2) components could also be significant. Based on this, we can try a few different model combinations and compare their performance based on metrics such as the Bayesian Information Criterion (BIC) or, alternatively, the Akaike Information Criterion (AIC).
+
+\section{Model Building}
+At first we will start by incorporating AR components into the model, given we have significant correlations at lag 1 and 2 on the PACF plot. We will compare the components' significance levels and the distribution of the residuals.
+
+\subsection{ARIMA(1,1,0)}
+First we will build a model with just one AR component.
+
+\input{tables/arima_110}
+\input{tables/arima_110_ics}
+The p-value for the AR1 component is  $<$ 0.01. This low p-value suggests that there is statistically significant evidence that the first lag of the series has a linear predictive value for the series after differencing.
+
+\begin{figure}[ht]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_110.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_110_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(1,1,0).}
+\label{fig:test}
+\end{figure}
+
+
+When looking at the diagnostic plot, we can see that the residual is not evenly spread without clear structure. The ACF of the residuals shows significant autocorrelation at different lags, which is confirmed by the Ljung-Box statistics at different lags. The normal QQ plot and the histogram also show that the residuals are not normally distributed. These results suggest that the ARIMA(1,1,0) model may not be the best fit for the data, and that a better model may exist.
+
+\newpage
+
+\subsection{ARIMA(2,1,0)}
+Next, we will add an additional AR component and compare the results.
+
+\input{tables/arima_210}
+\input{tables/arima_210_ics}
+The p-value for the AR1 component is $<$ 0.01, and for the AR2 component it is 0.03. Since both AR components are statistically significant, this means that the additional component may improve upon our previous model.
+
+\newpage
+
+\begin{figure}[ht]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_210.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_210_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(2,1,0).}
+\label{fig:test}
+\end{figure}
+\newpage
+
+The diagnostic plot for ARIMA(2,1,0) is similar to the previous one. Although the residual fluctuates around zero, there are still some periods of high volatility, particularly around 2008-2011.Looking at the ACF and PACF plots, there is autocorrelation present at different lags 5 and 11. The Ljung-Box plot confirms there is no significant autocorrelation for the first four lags. The normal QQ plot and the histogram also indicate that the residuals do not follow a normal distribution. These results suggest that the ARIMA(2,1,0) is an improvement upon our previous model and is more viable.
+
+\newpage
+
+\subsection{ARIMA(3,1,0)}
+Since ARIMA(2,1,0) performed better compared to ARIMA(1,1,0), we will add an additional AR component and compare its performance with the aforementioned models.
+
+\input{tables/arima_310}
+\input{tables/arima_310_ics}
+
+As before, the first two AR components of the model are still statistically significant. The additional AR component of this model though is not, with a p-value of 0.75. This suggests that this model may be too complex with no additional signal provided.
+
+\begin{figure}[h!]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_310.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_310_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(3,1,0).}
+\label{fig:test}
+\end{figure}
+
+
+
+Looking at the diagnostic plots, this model performs very similarly to our previous model, with some autocorrelation present at lags 5 and 11 and outliers at each tail of the distribution. Since we already know that the AR(3) component is not statistically significant, we will reject this model for the simpler ARIMA(2,1,0) model up to this point.
+
+\subsection{ARIMA(0,1,1)}
+Next, we will start exploring some models that contain only moving average components and follow the same method of adding additional MA components depending on those components' significance.
+
+
+\input{tables/arima_011}
+\input{tables/arima_011_ics}
+The p-value for the MA1 component is $<$ 0.01, which is below our significance level. This suggests that the error term from the previous time step provides valuable information in predicting the current step's value after differencing.
+
+\begin{figure}[h!]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_011.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_011_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(0,1,1).}
+\label{fig:test}
+\end{figure}
+
+The distribution of the residuals is very similar to our previous autoregressive models, There seems to be some volatility at the starting and ending points of the time series, with the same autocorrelated lag points present on the ACF and PACF plots. The distribution of the residuals has outliers present at both tails of the distribution. The Ljung-Box plot has an addidional non-significant autocorrelation lag, suggesting that the MA model is a viable option, especially as we further explore additional moving average parts and combinations of autoregressive and moving average.
+\newpage
+\section{ARIMA(0,1,2)}
+Next, we will add an additional MA component model to compare its performance to the previous moving average model.
+
+\input{tables/arima_012}
+\input{tables/arima_012_ics}
+
+The p-value for the MA1 component is still $<$ 0.01, but the MA2 component is not statistically significant. The diagnostics plot for ARIMA(0,1,2) is very similar to the ones from ARIMA(0,1,1), but the additional complexity added by the second moving average component is not justified based on its significance.
+
+
+\begin{figure}[h!]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_012.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_012_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(0,1,2).}
+\label{fig:test}
+\end{figure}
+
+\section{ARIMA(2,1,1)}
+Since our previous model fits have shown that ARIMA(2,1,0) and ARIMA(0,1,1) both contained statistically significant components, we can explore a synthesis of the two modelsby testing an ARIMA(2,1,1) model. 
+
+\input{tables/arima_211}
+\input{tables/arima_211_ics}
+
+The p-values for the AR1 and MA1 components are both statistically significant. For the AR2 component though, the p-value is 0.06, which is right above our predetermined significance level. This borderline p-value places us in a grey area of statistical inference, where the decision to include or exclude the AR2 term from the model may depend on additional considerations beyond the p-value alone.
+
+
+\begin{figure}[h!]
+\centering
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_211.png}
+\label{fig:sub1}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.6\textwidth}
+\centering
+\includegraphics[width=1\textwidth]{images/arima_211_examine.png}
+\label{fig:sub2}
+\end{subfigure}
+
+\caption{Model diagnostics for ARIMA(2,1,1).}
+\label{fig:test}
+\end{figure}
+\newpage
+\section{Model Comparison}
+After having fit multiple models, we will compare and evaluate them using their AIC and BIC scores. These metrics are statistical measures used to compare the goodness of fit of different models and penalize overly-complex models. They will help us discern which model has the optimal balance between accuracy and complexity.
+\begin{itemize}
+  \item AIC (Akaike Information Criterion) = $2k - 2ln(L)$, where $k$ is the number of parameters and L the likelihood of the model given the data.
+  \item AICc = Adds an additional penalty for models with more parameters when the sample size is small, making it less likely to select overfitted models. 
+  \item BIC (Bayesian Information Criterion) = $kln(n) - 2ln(L)$
+\end{itemize}
+
+\input{tables/ic_results_table}
+
+The model with the lowest AIC value is ARIMA(2,1,1) and the model with the lowest BIC value is ARIMA(0,1,1). Since AIC is more focused on the predictive accuracy of a model, we will choose ARIMA(2,1,1) as our final model and perform forecasting.
+
+\section{Forecasting Future Values}
+In this section, we will be forecasting future values using the ARIMA(2,1,1) model, which has been identified as the most suitable model based on its relative performance compared to the other models.
+$$\textbf{ARIMA(2,1,1)}: (1+ 0.6148B - 0.0983B^2)(1-B)X_t = (1-0.8636B)w_t + 2.8634$$
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\textwidth]{images/forecast.png}
+    \caption{ARIMA(2,1,1) forecasting for the next 5 months.}
+    \label{fig:enter-label}
+\end{figure}
+
+From the plot we can see that the model seems to be picking up a continuation of the recent increasing trend observed in the historical data. This suggests that the model expects the increasing trend will continue into the future. The confidence interval for our predictions is quite wide, accounting for any uncertainty in our predicted values. 
+
+We can also plot our observed and predicted values for all of the time points in the dataset and compare how closely they match.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\textwidth]{images/observed_predicted.png}
+    \caption{}
+    \label{fig:enter-label}
+\end{figure}
+
+We can see from the plot that the forecasted values track closely with the observed data, suggesting that the ARIMA(2,1,1) model is capturing the underlying trend of the series well.
+
+\section{Final Discussion}
+Throughout our investigation, we have applied various time series models with the goal of uncovering the nuanced patterns that have affected goal prices from 1979 to 2020. After applying and testing multiple models, we arrived at the ARIMA(2,1,1) model. which demonstrated the strongest capacity of capturing the underlying trends present in the dataset. However, it is important to keep in mind the limitations of the current model in regards to gold price predictions. Despite our model's predictive performance, gold market prices tend to fluctuate and are highly sensitive to global economic conditions. A more accurate model would perhaps take into account additional indicators other than prices at previous time points, but such a model at this time is outside the scope of this project.
+
+\bibliographystyle{apalike}
+\bibliography{bibliography}
+
+\appendix
+\section*{Appendix}
+\section{R Code for ARIMA Model Fitting and Diagnostics}
+\input{r-code}
+
+
+\end{document}

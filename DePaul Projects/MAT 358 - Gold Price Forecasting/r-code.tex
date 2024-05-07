@@ -1,0 +1,162 @@
+\begin{lstlisting}[language=R]
+    # Load required libraries
+    library(astsa)
+    library(tseries)
+    library(forecast)
+    library(dplyr)
+    library(zoo)
+    library(ggplot2)
+    library(xtable)
+\end{lstlisting}
+
+\begin{lstlisting}[language=R]
+    # Load the dataset
+    df <- read.csv('gold_price_data.csv')
+    df$Date <- as.POSIXct(df$Date)
+    head(df)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Remove data prior to 1979 
+    cutoff_date <- as.Date("1979-01-01")
+    df2 <- df %>% filter(Date >= cutoff_date)
+    head(df2)
+    
+    # Create zoo object
+    zoo_data <- zoo(df2$Value, order.by=df2$Date)
+    # Aggregate data monthly
+    monthly_data <- aggregate(zoo_data, as.yearmon, mean)  # Replace 'mean' with your function
+    
+    # Convert back to dataframe
+    monthly_df <- data.frame(date = index(monthly_data), value = coredata(monthly_data))
+    monthly_df
+
+    # Create time series object
+    ts_data <- ts(monthly_df$value, frequency=12, start=c(1979,1))
+    head(ts_data)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Plot the data
+    png("data_plot.png", width=800, height=600, res=100)
+    tsplot(ts_data, main="Value of Gold from 1979 to 2020", xlab='Time', ylab='Value', lw=2)
+    axis.POSIXct(1, at=seq(from=min(df$Date), to=max(df$Date), by="5 years"), format="%Y")
+    dev.off()
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Take first-order differencing to achieve stationarity
+    diff_x <-diff(ts_data,differences = 1)
+    head(diff_x)
+              Feb       Mar       Apr       May       Jun       Jul
+1979 18.454783 -3.622273 -3.383442 19.118323 21.284058 15.669697
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Plot the data after differencing
+    png("diff_plot.png", width=800, height=600, res=100)
+    tsplot(diff_x, main="Time Series Data after First-Order Differencing", xlab="Time", ylab="Difference")
+    dev.off()
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Perform augmented Dickey-Fuller Test to check stationarity
+    adf.test(diff_x)
+    Warning: p-value smaller than printed p-value
+    Augmented Dickey-Fuller Test
+    data:  diff_x
+    Dickey-Fuller = -7.0536, Lag order = 7, p-value = 0.01
+    alternative hypothesis: stationary
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ACF and PACF plots
+    png("acf_pacf_plot.png", width=800, height=600, res=100)
+    astsa::acf2(as.numeric(diff_x), max.lag=20, main=expression(paste("Estimated ACF & PACF plots for ", x[t] - x[t-1])))
+    dev.off()
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(1,1,0) Model
+    png('arima_110.png', width=800, height=600, res=100)
+    arima.110 <- sarima(as.numeric(ts_data), p=1, d=1, q=0)
+    dev.off()
+
+    examine.mod(arima.110, 1, 1, 0)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(2,1,0)
+    png('arima_210.png', width=800, height=600, res=100)
+    arima.210 <- sarima(as.numeric(ts_data), p=2, d=1, q=0)
+    dev.off()
+
+    examine.mod(arima.210, 2, 1, 0)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(3,1,0)
+    png('arima_310.png', width=800, height=600, res=100)
+    arima.310 <- sarima(as.numeric(ts_data), p=3, d=1, q=0)
+    dev.off()
+    
+    examine.mod(arima.310, 3, 1, 0)
+\end{lstlisting}
+
+\begin{lstlisting}
+    ### ARIMA(0,1,1)
+    png('arima_011.png', width=800, height=600, res=100)
+    arima.011 <- sarima(as.numeric(ts_data), p=0, d=1, q=1)
+    dev.off()
+    
+    examine.mod(arima.011, 0, 1, 1)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(0,1,2)
+    png('arima_012.png', width=800, height=600, res=100)
+    arima.012 <- sarima(as.numeric(ts_data), p=0, d=1, q=2)
+    dev.off()
+    
+    examine.mod(arima.012, 0, 1, 2)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(2,1,1)
+    png('arima_211.png', width=800, height=600, res=100)
+    arima.211 <- sarima(as.numeric(ts_data), p=2, d=1, q=1)
+    dev.off()
+    
+    examine.mod(arima.211, 2, 1, 1)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # ARIMA(1,1,1)
+    png('arima_111.png', width=800, height=600, res=100)
+    arima.111 <- sarima(as.numeric(ts_data), p=1, d=1, q=1)
+    dev.off()
+    
+    examine.mod(arima.111, 1, 1, 1)
+\end{lstlisting}
+
+\begin{lstlisting}
+    # IC Results for all models
+    data.frame(Model=c("ARIMA(1,1,0)", "ARIMA(2,1,0)", "ARIMA(3,1,0)", "ARIMA(0,1,1)", "ARIMA(0,1,2)", "ARIMA(2,1,1)", "ARIMA(1,1,1)"), 
+           AIC=c(arima.110$ICs[1], arima.210$ICs[1], arima.310$ICs[1], arima.011$ICs[1], arima.012$ICs[1], arima.211$ICs[1], arima.111$ICs[1]),
+           AICc=c(arima.110$ICs[2], arima.210$ICs[2], arima.310$ICs[2], arima.011$ICs[2], arima.012$ICs[2], arima.211$ICs[2], arima.111$ICs[2]),
+           BIC=c(arima.110$ICs[3], arima.210$ICs[3], arima.310$ICs[3], arima.011$ICs[3], arima.012$ICs[3], arima.211$ICs[3], arima.111$ICs[3]))
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Forecast future values
+    forecast <- sarima.for(ts_data, n.ahead=5, p=2, d=1, q=1, main='Forecasting 5 Month Ahead w/ ARIMA(2,1,1)')
+    forecast
+\end{lstlisting}
+
+\begin{lstlisting}
+    # Compare actual vs. predicted
+    pred_x <- as.numeric(ts_data) - resid(arima.211$fit)
+    tsplot(as.numeric(ts_data), ylab=expression(x[t]), type="o", main="Comparison of Observed and Predicted Values")
+    lines(pred_x, col="#D14138", type="o", pch=17, lw=1) 
+    legend("topleft", legend=c("Observed", "Forecast"), lty=c("solid", "solid"), col=c("black", "red"), pch=c(1, 17), bty="n")
+\end{lstlisting}
