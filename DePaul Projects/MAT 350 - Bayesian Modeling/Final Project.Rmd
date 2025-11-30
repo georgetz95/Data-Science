@@ -1,0 +1,1368 @@
+---
+title: "Final Project"
+author: "George Tzimas"
+date: "2024-11-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rjags)
+library(MASS)
+library(LaplacesDemon)
+library(survival)
+library(survminer)
+library(survRM2)
+library(rjags)
+library(tableone)
+library(kableExtra)
+library(xtable)
+```
+
+
+
+```{r cars}
+# Function to generate synthetic RCT data
+generate_synthetic_rct <- function(n_subjects = 1000, max_followup = 365 * 3) {
+  # Set seed for reproducibility
+  set.seed(123)
+  
+  # Generate basic demographic covariates
+  age <- rnorm(n_subjects, mean = 55, sd = 12)
+  age <- pmax(pmin(age, 85), 25)  # Truncate age between 25 and 85
+  
+  gender <- rbinom(n_subjects, 1, 0.5)  
+  
+  # Generate correlated blood pressure variables
+  bp_matrix <- MASS::mvrnorm(n_subjects, 
+                            mu = c(130, 80),  # Mean SBP and DBP
+                            Sigma = matrix(c(200, 100,  # Correlation matrix
+                                           100, 100), 2, 2))
+  
+  sbp <- bp_matrix[,1]
+  dbp <- bp_matrix[,2]
+  
+  # Generate BMI with realistic distribution
+  bmi <- rnorm(n_subjects, mean = 28, sd = 5)
+  bmi <- pmax(pmin(bmi, 50), 16)  # Truncate BMI between 16 and 50
+  
+  # Generate binary comorbidities with some correlation
+  hypertension <- ifelse(sbp >= 140 | dbp >= 90, 1, 0)
+  diabetes <- rbinom(n_subjects, 1, 0.2 + 0.2 * (bmi > 30))
+  smoking <- rbinom(n_subjects, 1, 0.25 - 0.1 * (age > 65))
+  
+  # Additional risk factors
+  anticoagulant <- rbinom(n_subjects, 1, 0.3)
+  prior_bleeding <- rbinom(n_subjects, 1, 0.1)
+  
+  # Treatment assignment
+  treatment <- rbinom(n_subjects, 1, 0.5)
+  
+  # Generate baseline risk
+  baseline_risk <- plogis(-3.5 + 
+                         0.02 * (age - 55) +
+                         0.8 * anticoagulant +
+                         1.2 * prior_bleeding +
+                         0.3 * diabetes +
+                         0.01 * (sbp - 130))
+  
+  # Treatment effects with heterogeneity
+  treatment_effect <- 0.5 +
+    0.3 * (age > 65) +
+    0.4 * anticoagulant +
+    0.2 * (bmi > 30)
+  
+  # Generate outcome
+  event_prob <- plogis(logit(baseline_risk) + treatment * treatment_effect)
+  event <- rbinom(n_subjects, 1, event_prob)
+  
+  # Create data frame
+  data <- data.frame(
+    subject_id = 1:n_subjects,
+    age = round(age, 1),
+    gender = factor(gender, labels = c("Male", "Female")),
+    bmi = round(bmi, 1),
+    sbp = round(sbp),
+    dbp = round(dbp),
+    hypertension = factor(hypertension, labels = c("No", "Yes")),
+    diabetes = factor(diabetes, labels = c("No", "Yes")),
+    smoking = factor(smoking, labels = c("No", "Yes")),
+    anticoagulant = factor(anticoagulant, labels = c("No", "Yes")),
+    prior_bleeding = factor(prior_bleeding, labels = c("No", "Yes")),
+    treatment = factor(treatment, labels = c("Control", "Treatment")),
+    event = event
+  )
+  
+  return(data)
+}
+```
+
+
+```{r}
+# Function to generate synthetic RCT data
+generate_synthetic_rct <- function(n_subjects = 1000, max_followup = 365 * 3) {
+  set.seed(123)
+  
+  # basic demographic covariates
+  age <- rnorm(n_subjects, mean = 55, sd = 12)
+  age <- pmax(pmin(age, 85), 25)  # Truncate age between 25 and 85
+  
+  gender <- rbinom(n_subjects, 1, 0.5)  
+  
+  # blood pressure variables
+  bp_matrix <- MASS::mvrnorm(n_subjects, 
+                            mu = c(130, 80),  
+                            Sigma = matrix(c(200, 100,  
+                                           100, 100), 2, 2))
+  
+  sbp <- bp_matrix[,1]
+  dbp <- bp_matrix[,2]
+  
+  # BMI   
+  bmi <- rnorm(n_subjects, mean = 28, sd = 5)
+  bmi <- pmax(pmin(bmi, 50), 16)  # Truncate BMI between 16 and 50
+  
+  # binary comorbidities with some correlation
+  hypertension <- ifelse(sbp >= 140 | dbp >= 90, 1, 0)
+  diabetes <- rbinom(n_subjects, 1, 0.2 + 0.2 * (bmi > 30))
+  smoking <- rbinom(n_subjects, 1, 0.25 - 0.1 * (age > 65))
+  
+  # Additional risk factors
+  anticoagulant <- rbinom(n_subjects, 1, 0.3)
+  prior_bleeding <- rbinom(n_subjects, 1, 0.1)
+  
+  # Treatment assignment
+  treatment <- rbinom(n_subjects, 1, 0.5)
+  
+  # Generate baseline risk
+  baseline_risk <- plogis(-3.5 + 
+                         0.02 * (age - 55) +
+                         0.8 * anticoagulant +
+                         1.2 * prior_bleeding +
+                         0.3 * diabetes +
+                         0.01 * (sbp - 130))
+  
+  # Generate treatment effects with possibility of harm
+  treatment_effect <- -0.2 +                     # Negative base effect
+                     0.5 * (age - 55)/10 +       # Age effect centered at 55
+                     0.4 * anticoagulant +       # Positive effect for anticoagulated
+                     -0.3 * diabetes +           # Negative effect for diabetics
+                     -0.2 * (bmi > 30) +         # Negative effect for obese
+                     0.3 * prior_bleeding        # Positive effect for prior bleeders
+  
+  # Treatment assignment
+  treatment <- rbinom(n_subjects, 1, 0.5)
+  
+  # Generate baseline risk
+  baseline_risk <- plogis(-3.5 + 
+                         0.02 * (age - 55) +
+                         0.8 * anticoagulant +
+                         1.2 * prior_bleeding +
+                         0.3 * diabetes +
+                         0.01 * (sbp - 130))
+  
+  # Generate outcome with treatment interaction
+  event_prob <- plogis(logit(baseline_risk) + treatment * treatment_effect)
+  event <- rbinom(n_subjects, 1, event_prob)
+  
+  # Create data frame
+  data <- data.frame(
+    subject_id = 1:n_subjects,
+    age = round(age, 1),
+    gender = factor(gender, labels = c("Male", "Female")),
+    bmi = round(bmi, 1),
+    sbp = round(sbp),
+    dbp = round(dbp),
+    hypertension = factor(hypertension, labels = c("No", "Yes")),
+    diabetes = factor(diabetes, labels = c("No", "Yes")),
+    smoking = factor(smoking, labels = c("No", "Yes")),
+    anticoagulant = factor(anticoagulant, labels = c("No", "Yes")),
+    prior_bleeding = factor(prior_bleeding, labels = c("No", "Yes")),
+    treatment = factor(treatment, labels = c("Control", "Treatment")),
+    event = event,
+    true_te = treatment_effect  # Store true treatment effect for validation
+  )
+  
+  return(data)
+}
+```
+
+
+```{r}
+# Function to prepare data for JAGS
+prepare_data <- function(data) {
+  # Standardize continuous variables
+  data_prep <- data %>%
+    mutate(
+      treatment = as.numeric(treatment) - 1,
+      age_s = as.vector(scale(age)),
+      bmi_s = as.vector(scale(bmi)),
+      sbp_s = as.vector(scale(sbp)),
+      anticoag = as.numeric(anticoagulant) - 1,
+      diabetes = as.numeric(diabetes) - 1,
+      prior_bleeding = as.numeric(prior_bleeding) - 1,
+      gender = as.numeric(gender) - 1,
+      status = event
+    )
+  
+  # Create data list for JAGS
+  jags_data <- list(
+    N = nrow(data_prep),
+    treatment = data_prep$treatment,
+    age = data_prep$age_s,
+    bmi = data_prep$bmi_s,
+    anticoag = data_prep$anticoag,
+    diabetes = data_prep$diabetes,
+    prior_bleeding = data_prep$prior_bleeding,
+    gender = data_prep$gender,
+    y = data_prep$status,
+    n_gender = 2
+  )
+  
+  return(list(jags_data = jags_data, data_prep = data_prep))
+}
+```
+
+```{r}
+# JAGS model specification
+binary_model_string <- "
+model {
+  # Likelihood
+  for (i in 1:N) {
+    y[i] ~ dbern(p[i])
+    logit(p[i]) <- mu[i]
+    
+    mu[i] <- b_intercept + 
+             b_trt * treatment[i] +
+             b_age * age[i] +
+             b_anticoag * anticoag[i] +
+             b_diabetes * diabetes[i] +
+             b_prior * prior_bleeding[i] +
+             b_bmi * bmi[i] +
+             # Treatment interactions
+             b_trt_age * treatment[i] * age[i] +
+             b_trt_anticoag * treatment[i] * anticoag[i] +
+             b_trt_diabetes * treatment[i] * diabetes[i] +
+             # Random effects
+             re[gender[i] + 1] +
+             re_trt[gender[i] + 1] * treatment[i]
+  }
+  
+  # Priors for fixed effects
+  b_intercept ~ dnorm(0, 1)
+  b_trt ~ dnorm(0, 1)
+  b_age ~ dnorm(0, 1)
+  b_anticoag ~ dnorm(0, 1)
+  b_diabetes ~ dnorm(0, 1)
+  b_prior ~ dnorm(0, 1)
+  b_bmi ~ dnorm(0, 1)
+  
+  # Priors for interaction effects
+  b_trt_age ~ dnorm(0, 1)
+  b_trt_anticoag ~ dnorm(0, 1)
+  b_trt_diabetes ~ dnorm(0, 1)
+  
+  # Random effects for gender
+  for (k in 1:n_gender) {
+    re[k] ~ dnorm(0, tau_re)
+    re_trt[k] ~ dnorm(0, tau_re_trt)
+  }
+  
+  # Hyperpriors for random effects
+  tau_re ~ dgamma(2, 2)
+  tau_re_trt ~ dgamma(2, 2)
+  
+  # Calculate gender-specific treatment effects
+  for (k in 1:n_gender) {
+    te_gender[k] <- b_trt + re_trt[k]
+  }
+}
+"
+```
+
+
+```{r}
+# Function to run JAGS model
+run_jags_model <- function(data_list, model_string, n.chains = 3) {
+  # Initialize model with conservative initial values
+  inits <- function() {
+    list(
+      b_intercept = rnorm(1, 0, 0.1),
+      b_trt = rnorm(1, 0, 0.1),
+      b_age = rnorm(1, 0, 0.1),
+      b_anticoag = rnorm(1, 0, 0.1),
+      b_diabetes = rnorm(1, 0, 0.1),
+      b_prior = rnorm(1, 0, 0.1),
+      b_bmi = rnorm(1, 0, 0.1),
+      b_trt_age = rnorm(1, 0, 0.1),
+      b_trt_anticoag = rnorm(1, 0, 0.1),
+      b_trt_diabetes = rnorm(1, 0, 0.1),
+      tau_re = 1,
+      tau_re_trt = 1
+    )
+  }
+  
+  # Initialize model
+  jags_model <- jags.model(
+    textConnection(model_string),
+    data = data_list,
+    inits = inits,
+    n.chains = n.chains,
+    n.adapt = 2000
+  )
+  
+  # Burn-in
+  update(jags_model, 5000)
+  
+  # Parameters to monitor
+  params <- c("b_intercept", "b_trt", "b_age", "b_anticoag", "b_diabetes",
+              "b_prior", "b_bmi", "b_trt_age", "b_trt_anticoag", 
+              "b_trt_diabetes", "te_gender")
+  
+  # Sample from posterior
+  mcmc_samples <- coda.samples(
+    jags_model,
+    variable.names = params,
+    n.iter = 10000,
+    thin = 10
+  )
+  
+  return(mcmc_samples)
+}
+```
+
+```{r}
+# Function to calculate treatment effects for subgroups
+calculate_subgroup_effects <- function(mcmc_samples, subgroup_values) {
+  # Extract samples
+  samples <- as.matrix(mcmc_samples)
+  
+  # Calculate treatment effects
+  te_samples <- samples[, "b_trt"] +
+                samples[, "b_trt_age"] * subgroup_values$age +
+                samples[, "b_trt_anticoag"] * subgroup_values$anticoag +
+                samples[, "b_trt_diabetes"] * subgroup_values$diabetes
+  
+  # Transform to probability scale
+  te_prob <- plogis(te_samples) - plogis(rep(0, length(te_samples)))
+  
+  # Summarize
+  te_summary <- c(
+    mean = mean(te_prob),
+    quantile(te_prob, probs = c(0.025, 0.975))
+  )
+  
+  return(te_summary)
+}
+```
+
+```{r}
+# Function to create diagnostic plots
+create_diagnostic_plots <- function(mcmc_samples) {
+  # Trace plots
+  par(mfrow = c(3, 2))
+  traceplot(mcmc_samples[, c("b_trt", "b_trt_age", "b_trt_anticoag",
+                            "b_trt_diabetes", "te_gender[1]", "te_gender[2]")])
+  
+  # Density plots
+  par(mfrow = c(3, 2))
+  plot(density(as.matrix(mcmc_samples)[, "b_trt"]), main = "Treatment Effect")
+  plot(density(as.matrix(mcmc_samples)[, "b_trt_age"]), main = "Treatment-Age Interaction")
+  plot(density(as.matrix(mcmc_samples)[, "b_trt_anticoag"]), main = "Treatment-Anticoag Interaction")
+  plot(density(as.matrix(mcmc_samples)[, "b_trt_diabetes"]), main = "Treatment-Diabetes Interaction")
+  plot(density(as.matrix(mcmc_samples)[, "te_gender[1]"]), main = "TE Males")
+  plot(density(as.matrix(mcmc_samples)[, "te_gender[2]"]), main = "TE Females")
+}
+
+library(ggplot2)
+library(gridExtra)
+
+# Function to create diagnostic plots
+create_diagnostic_plots2 <- function(mcmc_samples, save_plots = FALSE, output_dir = "plots") {
+  # Ensure output directory exists
+  if (save_plots && !dir.exists(output_dir)) {
+    dir.create(output_dir)
+  }
+  
+  # Trace plots (base R)
+  if (save_plots) {
+    png(filename = file.path(output_dir, "traceplots.png"), width = 1200, height = 800, res = 150)
+    par(mfrow = c(3, 2))
+    traceplot(mcmc_samples[, c("b_trt", "b_trt_age", "b_trt_anticoag",
+                               "b_trt_diabetes", "te_gender[1]", "te_gender[2]")])
+    dev.off()
+  } else {
+    par(mfrow = c(3, 2))
+    traceplot(mcmc_samples[, c("b_trt", "b_trt_age", "b_trt_anticoag",
+                               "b_trt_diabetes", "te_gender[1]", "te_gender[2]")])
+  }
+  
+  # Density plots for selected parameters
+  density_plots <- list(
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "b_trt"]), aes(x = x)) +
+      geom_density(fill = "blue", alpha = 0.5) +
+      labs(title = "Treatment Effect", x = "b_trt", y = "Density"),
+    
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "b_trt_age"]), aes(x = x)) +
+      geom_density(fill = "green", alpha = 0.5) +
+      labs(title = "Treatment-Age Interaction", x = "b_trt_age", y = "Density"),
+    
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "b_trt_anticoag"]), aes(x = x)) +
+      geom_density(fill = "red", alpha = 0.5) +
+      labs(title = "Treatment-Anticoag Interaction", x = "b_trt_anticoag", y = "Density"),
+    
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "b_trt_diabetes"]), aes(x = x)) +
+      geom_density(fill = "purple", alpha = 0.5) +
+      labs(title = "Treatment-Diabetes Interaction", x = "b_trt_diabetes", y = "Density"),
+    
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "te_gender[1]"]), aes(x = x)) +
+      geom_density(fill = "orange", alpha = 0.5) +
+      labs(title = "TE Males", x = "te_gender[1]", y = "Density"),
+    
+    ggplot(data = data.frame(x = as.matrix(mcmc_samples)[, "te_gender[2]"]), aes(x = x)) +
+      geom_density(fill = "cyan", alpha = 0.5) +
+      labs(title = "TE Females", x = "te_gender[2]", y = "Density")
+  )
+  
+  # Combine density plots into a grid
+  density_grid <- marrangeGrob(density_plots, nrow = 3, ncol = 2)
+  
+  # Display the grid
+  grid::grid.newpage()
+  grid::grid.draw(density_grid)
+  
+  # Save the density plots if requested
+  if (save_plots) {
+    ggsave(filename = file.path(output_dir, "density_plots.png"), 
+           plot = density_grid, device = "png", width = 10, height = 8)
+  }
+}
+
+```
+
+```{r}
+# Function to create effect plots
+create_effect_plots <- function(mcmc_samples, data_prep) {
+  # Calculate treatment effects across age range
+  age_seq <- seq(-2, 2, length.out = 100)
+  te_age <- sapply(age_seq, function(a) {
+    subgroup_values <- list(age = a, anticoag = 0, diabetes = 0)
+    calculate_subgroup_effects(mcmc_samples, subgroup_values)["mean"]
+  })
+  
+  # Create age effect plot
+  age_plot <- ggplot(data.frame(age = age_seq, te = te_age)) +
+    geom_line(aes(x = age, y = te)) +
+    labs(x = "Standardized Age", y = "Treatment Effect",
+         title = "Treatment Effect by Age") +
+    theme_minimal()
+  
+  # Calculate effects for binary variables
+  binary_effects <- data.frame(
+    Variable = c("Anticoagulation", "Diabetes"),
+    Level = c("No", "Yes"),
+    Effect = c(
+      calculate_subgroup_effects(mcmc_samples, list(age = 0, anticoag = 0, diabetes = 0))["mean"],
+      calculate_subgroup_effects(mcmc_samples, list(age = 0, anticoag = 1, diabetes = 0))["mean"],
+      calculate_subgroup_effects(mcmc_samples, list(age = 0, anticoag = 0, diabetes = 0))["mean"],
+      calculate_subgroup_effects(mcmc_samples, list(age = 0, anticoag = 0, diabetes = 1))["mean"]
+    )
+  )
+  
+  # Create binary effects plot
+  binary_plot <- ggplot(binary_effects, aes(x = Level, y = Effect, fill = Variable)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(x = "", y = "Treatment Effect",
+         title = "Treatment Effects by Binary Covariates") +
+    theme_minimal()
+  
+  return(list(age_plot = age_plot, binary_plot = binary_plot))
+}
+```
+
+```{r}
+# Generate synthetic data
+rct_data <- generate_synthetic_rct(2000)
+head(rct_data)
+```
+
+```{r}
+variables <- rct_data %>% dplyr::select(-c(subject_id, treatment)) %>% colnames()
+categorical_variables <- c('gender', 'hypertension', 'diabetes', 'smoking', 'anticoagulant', 'prior_bleeding', 'event')
+table1 <- CreateTableOne(vars=variables, strata='treatment', data=rct_data, factorVars = categorical_variables)
+
+p <- print(table1, printToggle = F, noSpaces = T, showAllLevels = T, missing=F, test=T)
+print(p)
+
+latex_table <- kbl(p, booktabs = T, longtable=T, format = "latex") %>% 
+  kable_styling(latex_options = c('striped', 'repeat_header'))
+cat(latex_table, file='table1_output.tex')
+```
+
+```{r}
+# Logistic regression for propensity score estimation
+ps_model <- glm(treatment ~ age + gender + sbp + dbp + bmi + 
+                  hypertension + diabetes + smoking + anticoagulant + prior_bleeding,
+                family = binomial(), data = rct_data)
+
+summary(ps_model)
+
+
+# Add propensity scores to the dataset
+rct_data$propensity_score <- predict(ps_model, type = "response")
+
+# Visualize the propensity score distribution
+p <- ggplot(rct_data, aes(x = propensity_score, fill = treatment)) +
+  geom_density(alpha = 0.7) +
+  labs(x = "Propensity Score", y = "Density",
+       title = "Propensity Score Distribution by Treatment Group") +
+  theme_classic()
+ggsave("propensity_scores.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+```
+
+
+
+```{r}
+# Prepare data for JAGS
+data_prepared <- prepare_data(rct_data)
+```
+
+```{r}
+# Fit model
+binary_samples <- run_jags_model(data_prepared$jags_data, binary_model_string)
+```
+
+
+```{r}
+# Check convergence
+print("Gelman-Rubin Diagnostics:")
+print(gelman.diag(binary_samples))
+# xtable(gelman.diag(binary_samples)$psrf, caption='Gelman-Rubin diagnostic results for model convergence.', auto=T, digits=3)
+```
+```{r}
+geweke_results <- geweke.diag(binary_samples)
+geweke_df <- do.call(rbind, lapply(1:length(geweke_results), function(i) {
+  data.frame(
+    Chain=i, 
+    Parameter=names(geweke_results[[i]]$z),
+    Z_Score=geweke_results[[i]]$z)
+})) %>%
+pivot_wider(names_from=Chain, values_from=Z_Score, names_prefix='Chain_')
+geweke_df
+xtable(geweke_df, caption='Geweke diagnostic results for each parameter and chain.', auto=T, digits=3 )
+```
+
+```{r}
+# Summarize results
+print("Parameter Summaries:")
+# print(summary(binary_samples))
+
+log_odds <- summary(binary_samples)$statistics[,1]
+probs <- exp(log_odds) / (1 + exp(log_odds))
+model_summary <- data.frame(summary(binary_samples)$statistics) %>% 
+  mutate(prob=probs) %>%
+  dplyr::select(Mean, prob, SD, everything()) 
+model_summary
+model_summary %>% xtable(caption='Summary statistics for each variable in the model.', auto=T, digits=3)
+```
+
+```{r}
+# Calculate subgroup effects
+subgroups <- list(
+  "Average" = list(age = 0, anticoag = 0, diabetes = 0),
+  "High Risk" = list(age = 1, anticoag = 1, diabetes = 1),
+  "Low Risk" = list(age = -1, anticoag = 0, diabetes = 0)
+)
+
+subgroup_results <- lapply(subgroups, function(sg) {
+  calculate_subgroup_effects(binary_samples, sg)
+})
+print("Subgroup Treatment Effects:")
+subgroup_results <- do.call(rbind, subgroup_results) %>% 
+  as.data.frame %>% 
+  rownames_to_column(var='Risk Group') %>% 
+  mutate(`Risk Group`=factor(`Risk Group`, levels=c('Low Risk', 'Average', 'High Risk'))) %>%
+  arrange(`Risk Group`)
+subgroup_results
+```
+
+```{r}
+# Create diagnostic plots
+# create_diagnostic_plots(binary_samples, save_plots = T, output_dir = '/home/georgetz/Desktop/Classes/Fall 2024/MAT 350 - Bayesian Statistics/Final Project')
+
+create_diagnostic_plots2(binary_samples, save_plots = T, output_dir = '/home/georgetz/Desktop/Classes/Fall 2024/MAT 350 - Bayesian Statistics/Final Project')
+```
+
+```{r}
+# Create effect plots
+effect_plots <- create_effect_plots(binary_samples, data_prepared$data_prep)
+effect_plots
+```
+
+```{r}
+# Function to calculate individual treatment effects and risk-based subgroups
+analyze_treatment_effects <- function(mcmc_samples, data, n_groups = 5) {
+  # First, let's examine the actual column names in our MCMC samples
+  param_names <- colnames(as.matrix(mcmc_samples))
+  
+  # Function to safely get parameter samples
+  get_param_samples <- function(samples_matrix, param_pattern) {
+    cols <- grep(param_pattern, colnames(samples_matrix), value = TRUE)
+    if(length(cols) == 0) {
+      warning(paste("No columns found matching pattern:", param_pattern))
+      return(NULL)
+    }
+    return(samples_matrix[, cols])
+  }
+  
+  # Calculate individual treatment effects and risk scores
+  get_individual_effects <- function(data_prep) {
+    # Extract posterior samples
+    samples_matrix <- as.matrix(mcmc_samples)
+    n_samples <- nrow(samples_matrix)
+    n_subjects <- nrow(data_prep)
+    
+    # Initialize matrices for predictions
+    te_samples <- matrix(NA, n_samples, n_subjects)
+    risk_scores <- matrix(NA, n_samples, n_subjects)
+    
+    # Calculate effects for each MCMC sample
+    for(i in 1:n_samples) {
+      # Extract parameters more safely
+      params <- list(
+        b_intercept = samples_matrix[i, "b_intercept"],
+        b_trt = samples_matrix[i, "b_trt"],
+        b_age = samples_matrix[i, "b_age"],
+        b_anticoag = samples_matrix[i, "b_anticoag"],
+        b_diabetes = samples_matrix[i, "b_diabetes"],
+        b_prior = samples_matrix[i, "b_prior"],
+        b_bmi = samples_matrix[i, "b_bmi"],
+        b_trt_age = samples_matrix[i, "b_trt_age"],
+        b_trt_anticoag = samples_matrix[i, "b_trt_anticoag"],
+        b_trt_diabetes = samples_matrix[i, "b_trt_diabetes"]
+      )
+      
+      # Get random effects if they exist
+      re <- get_param_samples(samples_matrix[i,,drop=FALSE], "^re\\[")
+      re_trt <- get_param_samples(samples_matrix[i,,drop=FALSE], "^re_trt\\[")
+      
+      # Calculate baseline risk (without treatment)
+      risk_scores[i,] <- {
+        linear_pred <- params$b_intercept + 
+                      params$b_age * data_prep$age_s +
+                      params$b_anticoag * data_prep$anticoag +
+                      params$b_diabetes * data_prep$diabetes +
+                      params$b_prior * data_prep$prior_bleeding +
+                      params$b_bmi * data_prep$bmi_s
+        
+        # Add random effects if they exist
+        if(!is.null(re)) {
+          linear_pred <- linear_pred + re[data_prep$gender + 1]
+        }
+        
+        plogis(linear_pred)
+      }
+      
+      # Calculate treatment effects
+      te_samples[i,] <- {
+        te <- params$b_trt +
+             params$b_trt_age * data_prep$age_s +
+             params$b_trt_anticoag * data_prep$anticoag +
+             params$b_trt_diabetes * data_prep$diabetes
+        
+        # Add random treatment effects if they exist
+        if(!is.null(re_trt)) {
+          te <- te + re_trt[data_prep$gender + 1]
+        }
+        
+        te
+      }
+    }
+    
+    # Calculate mean effects and risks
+    mean_te <- colMeans(te_samples)
+    mean_risk <- colMeans(risk_scores)
+    
+    # Calculate credible intervals
+    te_ci <- t(apply(te_samples, 2, quantile, probs = c(0.025, 0.975)))
+    
+    return(list(
+      treatment_effect = mean_te,
+      baseline_risk = mean_risk,
+      te_lower = te_ci[,1],
+      te_upper = te_ci[,2]
+    ))
+  }
+  
+  # Get individual effects
+  effects <- get_individual_effects(data_prepared$data_prep)
+  
+  # Add effects to original data
+  results <- data %>%
+    mutate(
+      individual_te = effects$treatment_effect,
+      baseline_risk = effects$baseline_risk,
+      te_lower = effects$te_lower,
+      te_upper = effects$te_upper
+    )
+  
+  # Create risk groups
+  results <- results %>%
+    mutate(
+      risk_group = cut(baseline_risk, 
+                      breaks = quantile(baseline_risk, probs = seq(0, 1, length.out = n_groups + 1)),
+                      labels = paste("Q", 1:n_groups, sep=""),
+                      include.lowest = TRUE)
+    )
+  
+  # Subgroup analysis by risk groups
+  risk_subgroups <- results %>%
+    group_by(risk_group) %>%
+    summarise(
+      n = n(),
+      mean_risk = mean(baseline_risk),
+      mean_te = mean(individual_te),
+      te_sd = sd(individual_te),
+      te_lower = mean(te_lower),
+      te_upper = mean(te_upper)
+    )
+  
+  # Test for treatment effect heterogeneity across risk groups
+  het_test <- lm(individual_te ~ risk_group, data = results)
+  het_anova <- anova(het_test)
+  
+  # Create visualization
+  te_plot <- ggplot(risk_subgroups, aes(x = risk_group, y = mean_te)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = te_lower, ymax = te_upper), width = 0.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    labs(x = "Risk Quintile", 
+         y = "Treatment Effect",
+         title = "Treatment Effects by Risk Group") +
+    theme_minimal() +
+    coord_flip()
+  
+  # Create forest plot of key subgroups
+  subgroup_analysis <- results %>%
+    group_by(anticoagulant, diabetes) %>%
+    summarise(
+      n = n(),
+      mean_te = mean(individual_te),
+      te_sd = sd(individual_te),
+      mean_risk = mean(baseline_risk),
+      te_lower = mean(te_lower),
+      te_upper = mean(te_upper),
+      .groups = 'drop'
+    ) %>%
+    arrange(desc(mean_te))
+  
+  forest_plot <- ggplot(subgroup_analysis, 
+                       aes(y = reorder(paste(anticoagulant, diabetes), mean_te),
+                           x = mean_te)) +
+    geom_point() +
+    geom_errorbarh(aes(xmin = te_lower, xmax = te_upper), height = 0.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+    labs(x = "Treatment Effect", y = "Subgroup",
+         title = "Treatment Effects by Key Subgroups") +
+    theme_minimal()
+  
+  return(list(
+    individual_results = results,
+    risk_subgroups = risk_subgroups,
+    subgroup_analysis = subgroup_analysis,
+    heterogeneity_test = het_anova,
+    risk_plot = te_plot,
+    forest_plot = forest_plot
+  ))
+}
+```
+
+```{r}
+# Function to calculate individual treatment effects and risk-based subgroups
+analyze_treatment_effects <- function(mcmc_samples, data, n_groups = 5) {
+  # Calculate individual treatment effects and risk scores
+  get_individual_effects <- function(data_prep) {
+    # Extract posterior samples
+    samples_matrix <- as.matrix(mcmc_samples)
+    n_samples <- nrow(samples_matrix)
+    n_subjects <- nrow(data_prep)
+    
+    # Initialize matrices for predictions
+    te_samples <- matrix(NA, n_samples, n_subjects)
+    risk_scores <- matrix(NA, n_samples, n_subjects)
+    
+    # Calculate effects for each MCMC sample
+    for(i in 1:n_samples) {
+      # Extract fixed effects parameters
+      params <- list(
+        b_intercept = samples_matrix[i, "b_intercept"],
+        b_trt = samples_matrix[i, "b_trt"],
+        b_age = samples_matrix[i, "b_age"],
+        b_anticoag = samples_matrix[i, "b_anticoag"],
+        b_diabetes = samples_matrix[i, "b_diabetes"],
+        b_prior = samples_matrix[i, "b_prior"],
+        b_bmi = samples_matrix[i, "b_bmi"],
+        b_trt_age = samples_matrix[i, "b_trt_age"],
+        b_trt_anticoag = samples_matrix[i, "b_trt_anticoag"],
+        b_trt_diabetes = samples_matrix[i, "b_trt_diabetes"]
+      )
+      
+      # Calculate baseline risk (without treatment)
+      risk_scores[i,] <- {
+        linear_pred <- params$b_intercept + 
+                      params$b_age * data_prep$age_s +
+                      params$b_anticoag * data_prep$anticoag +
+                      params$b_diabetes * data_prep$diabetes +
+                      params$b_prior * data_prep$prior_bleeding +
+                      params$b_bmi * data_prep$bmi_s
+        
+        plogis(linear_pred)
+      }
+      
+      # Calculate treatment effects
+      te_samples[i,] <- {
+        params$b_trt +
+        params$b_trt_age * data_prep$age_s +
+        params$b_trt_anticoag * data_prep$anticoag +
+        params$b_trt_diabetes * data_prep$diabetes
+      }
+    }
+    
+    # Calculate mean effects and risks
+    mean_te <- colMeans(te_samples)
+    mean_risk <- colMeans(risk_scores)
+    
+    # Calculate credible intervals
+    te_ci <- t(apply(te_samples, 2, quantile, probs = c(0.025, 0.975)))
+    
+    return(list(
+      treatment_effect = mean_te,
+      baseline_risk = mean_risk,
+      te_lower = te_ci[,1],
+      te_upper = te_ci[,2]
+    ))
+  }
+  
+  # Get individual effects
+  effects <- get_individual_effects(data_prepared$data_prep)
+  
+  # Add effects to original data
+  results <- data %>%
+    mutate(
+      individual_te = effects$treatment_effect,
+      baseline_risk = effects$baseline_risk,
+      te_lower = effects$te_lower,
+      te_upper = effects$te_upper
+    )
+  
+  # Create risk groups
+  results <- results %>%
+    mutate(
+      risk_group = cut(baseline_risk, 
+                      breaks = quantile(baseline_risk, probs = seq(0, 1, length.out = n_groups + 1)),
+                      labels = paste("Q", 1:n_groups, sep=""),
+                      include.lowest = TRUE)
+    )
+  
+  # Subgroup analysis by risk groups
+  risk_subgroups <- results %>%
+    group_by(risk_group) %>%
+    summarise(
+      n = n(),
+      mean_risk = mean(baseline_risk),
+      mean_te = mean(individual_te),
+      te_sd = sd(individual_te),
+      te_lower = mean(te_lower),
+      te_upper = mean(te_upper),
+      .groups = 'drop'
+    ) %>%
+    arrange(mean_risk)
+  
+  # Test for treatment effect heterogeneity across risk groups
+  het_test <- lm(individual_te ~ risk_group, data = results)
+  het_anova <- anova(het_test)
+  
+  # Create visualization of risk group effects
+  te_plot <- ggplot(risk_subgroups, aes(x = risk_group, y = mean_te)) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = te_lower, ymax = te_upper), width = 0.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    labs(x = "Risk Quintile", 
+         y = "Treatment Effect",
+         title = "Treatment Effects by Risk Group") +
+    theme_minimal() +
+    coord_flip()
+  
+  # Subgroup analysis by key factors
+  subgroup_analysis <- results %>%
+    group_by(anticoagulant, diabetes) %>%
+    summarise(
+      n = n(),
+      mean_te = mean(individual_te),
+      te_sd = sd(individual_te),
+      mean_risk = mean(baseline_risk),
+      te_lower = mean(te_lower),
+      te_upper = mean(te_upper),
+      .groups = 'drop'
+    ) %>%
+    arrange(desc(mean_te))
+  
+  # Create forest plot
+  forest_plot <- ggplot(subgroup_analysis, 
+                       aes(y = reorder(paste(anticoagulant, diabetes), mean_te),
+                           x = mean_te)) +
+    geom_point(size = 3) +
+    geom_errorbarh(aes(xmin = te_lower, xmax = te_upper), height = 0.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+    labs(x = "Treatment Effect", y = "Subgroup",
+         title = "Treatment Effects by Key Subgroups") +
+    theme_minimal()
+  
+  return(list(
+    individual_results = results,
+    risk_subgroups = risk_subgroups,
+    subgroup_analysis = subgroup_analysis,
+    heterogeneity_test = het_anova,
+    risk_plot = te_plot,
+    forest_plot = forest_plot
+  ))
+}
+```
+
+```{r}
+# Run the analysis
+te_analysis <- analyze_treatment_effects(binary_samples, rct_data)
+
+# Print formatted results using explicit dplyr functions
+cat("\nRisk Group Analysis:\n")
+print(te_analysis$risk_subgroups %>% 
+      dplyr::select(risk_group, n, mean_risk, mean_te, te_lower, te_upper) %>%
+      dplyr::mutate(across(where(is.numeric), ~round(., 3))))
+
+cat("\nSubgroup Analysis:\n")
+print(te_analysis$subgroup_analysis %>%
+      dplyr::select(anticoagulant, diabetes, n, mean_te, te_lower, te_upper) %>%
+      dplyr::mutate(across(where(is.numeric), ~round(., 3))))
+
+cat("\nTest for Treatment Effect Heterogeneity:\n")
+print(te_analysis$heterogeneity_test)
+
+# Display plots
+print(te_analysis$risk_plot)
+print(te_analysis$forest_plot)
+
+```
+
+```{r}
+# Create a risk distribution plot with explicit ggplot calls
+risk_dist_plot <- ggplot(te_analysis$individual_results, 
+                        aes(x = baseline_risk, fill = risk_group)) +
+  geom_density(bins = 30, alpha = 0.7) +
+  labs(x = "Baseline Risk", y = "Count",
+       title = "Distribution of Baseline Risk Scores") +
+  theme_minimal()
+
+print(risk_dist_plot)
+```
+
+```{r}
+# Save results to a data frame for further analysis if needed
+results_df <- te_analysis$individual_results %>%
+  dplyr::select(
+    age, gender, anticoagulant, diabetes,
+    baseline_risk, individual_te, te_lower, te_upper,
+    risk_group
+  )
+
+# Summary statistics by risk group
+risk_summary <- results_df %>%
+  group_by(risk_group) %>%
+  summarise(
+    n_patients = n(),
+    mean_risk = mean(baseline_risk),
+    mean_effect = mean(individual_te),
+    lower_ci = mean(te_lower),
+    upper_ci = mean(te_upper)
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 3)))
+
+print("Risk Group Summary:")
+print(risk_summary)
+```
+
+```{r}
+# Summary statistics by key subgroups
+subgroup_summary <- results_df %>%
+  group_by(anticoagulant, diabetes) %>%
+  summarise(
+    n_patients = n(),
+    mean_risk = mean(baseline_risk),
+    mean_effect = mean(individual_te),
+    lower_ci = mean(te_lower),
+    upper_ci = mean(te_upper)
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 3)))
+
+print("Subgroup Summary:")
+print(subgroup_summary)
+```
+
+
+```{r}
+# Function to calculate individual CATEs with clear harm/benefit interpretation
+calculate_individual_cates <- function(mcmc_samples, data_prep) {
+  # Extract posterior samples
+  samples_matrix <- as.matrix(mcmc_samples)
+  n_samples <- nrow(samples_matrix)
+  n_subjects <- nrow(data_prep)
+  
+  # Initialize matrix for CATE samples
+  cate_samples <- matrix(NA, n_samples, n_subjects)
+  
+  # Calculate CATE for each MCMC sample
+  for(i in 1:n_samples) {
+    # Extract parameters for this iteration
+    params <- list(
+      b_trt = samples_matrix[i, "b_trt"],
+      b_trt_age = samples_matrix[i, "b_trt_age"],
+      b_trt_anticoag = samples_matrix[i, "b_trt_anticoag"],
+      b_trt_diabetes = samples_matrix[i, "b_trt_diabetes"]
+    )
+    
+    # Calculate conditional treatment effect
+    cate_samples[i,] <- params$b_trt +
+                       params$b_trt_age * data_prep$age_s +
+                       params$b_trt_anticoag * data_prep$anticoag +
+                       params$b_trt_diabetes * data_prep$diabetes
+  }
+  
+  # Calculate summary statistics for each individual
+  cate_summary <- data.frame(
+    bleeding_risk_increase = colMeans(cate_samples),  # Renamed for clarity
+    cate_sd = apply(cate_samples, 2, sd),
+    cate_lower = apply(cate_samples, 2, quantile, probs = 0.025),
+    cate_upper = apply(cate_samples, 2, quantile, probs = 0.975)
+  )
+  
+  # Add risk categories
+  cate_summary$risk_category <- cut(cate_summary$bleeding_risk_increase,
+                                  breaks = c(-Inf, -0.05, 0.05, Inf),
+                                  labels = c("Treatment Beneficial",
+                                           "Minimal Effect",
+                                           "Treatment Harmful"))
+  
+  # Add to original data
+  results <- cbind(
+    data_prep,
+    cate_summary
+  )
+  
+  # Create visualization with clear interpretation
+  interval_plot <- ggplot(results[order(results$bleeding_risk_increase),], 
+                         aes(x = 1:nrow(results), 
+                             y = bleeding_risk_increase,
+                             color = risk_category)) +
+    geom_point(alpha = 0.5) +
+    geom_errorbar(aes(ymin = cate_lower, ymax = cate_upper), alpha = 0.2) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    scale_color_manual(values = c("green3", "gray50", "red3")) +
+    theme_minimal() +
+    labs(title = "Individual Treatment Effects on Bleeding Risk",
+         subtitle = "Positive values indicate increased bleeding risk with treatment",
+         x = "Individual (sorted by bleeding risk increase)",
+         y = "Change in Bleeding Risk",
+         color = "Risk Category") +
+    theme(legend.position = "bottom")
+  
+  # Create risk category summary
+  risk_summary <- results %>%
+    group_by(risk_category) %>%
+    summarise(
+      n_patients = n(),
+      pct_patients = n()/nrow(results) * 100,
+      mean_risk_change = mean(bleeding_risk_increase),
+      .groups = 'drop'
+    )
+  
+  # Add characteristics by risk category
+  characteristics_by_category <- results %>%
+    group_by(risk_category) %>%
+    summarise(
+      n = n(),
+      mean_age = mean(age_s),
+      pct_anticoag = mean(anticoag) * 100,
+      pct_diabetes = mean(diabetes) * 100,
+      .groups = 'drop'
+    )
+  
+  return(list(
+    individual_results = results,
+    risk_summary = risk_summary,
+    characteristics = characteristics_by_category,
+    interval_plot = interval_plot
+  ))
+}
+
+# Calculate CATEs
+cate_results <- calculate_individual_cates(binary_samples, data_prepared$data_prep)
+
+# Print summary
+print("Treatment Effect on Bleeding Risk by Category:")
+print(cate_results$risk_summary)
+
+print("\nPatient Characteristics by Risk Category:")
+print(cate_results$characteristics)
+
+# Display plot
+print(cate_results$interval_plot)
+
+# Create table of high-risk patients
+high_risk_patients <- cate_results$individual_results %>%
+  filter(bleeding_risk_increase > quantile(bleeding_risk_increase, 0.9)) %>%
+  select(age_s, anticoag, diabetes, bleeding_risk_increase, cate_lower, cate_upper) %>%
+  arrange(desc(bleeding_risk_increase))
+
+print("\nTop 10% Highest Risk Increase Patients:")
+print(head(high_risk_patients, 10))
+
+# Create table of most beneficial cases
+benefit_patients <- cate_results$individual_results %>%
+  filter(bleeding_risk_increase < quantile(bleeding_risk_increase, 0.1)) %>%
+  select(age_s, anticoag, diabetes, bleeding_risk_increase, cate_lower, cate_upper) %>%
+  arrange(bleeding_risk_increase)
+
+print("\nTop 10% Most Beneficial Cases:")
+print(head(benefit_patients, 10))
+```
+
+
+```{r}
+cate_results$individual_results$bleeding_risk_increase
+te_analysis$individual_results$baseline_risk
+```
+
+```{r}
+# Function to validate CATE estimates with covariates
+validate_cates <- function(predicted_cates, true_data) {
+  # Combine predicted and true effects with covariates
+  validation_data <- data.frame(
+    predicted_cate = predicted_cates$bleeding_risk_increase,
+    true_te = true_data$true_te,
+    pred_lower = predicted_cates$cate_lower,
+    pred_upper = predicted_cates$cate_upper,
+    anticoag = predicted_cates$anticoag,
+    diabetes = predicted_cates$diabetes,
+    age_s = predicted_cates$age_s,
+    bmi_s = predicted_cates$bmi_s
+  )
+  
+  # Calculate validation metrics
+  metrics <- list(
+    # Correlation between predicted and true
+    correlation = cor(validation_data$predicted_cate, 
+                     validation_data$true_te),
+    
+    # Root Mean Squared Error
+    rmse = sqrt(mean((validation_data$predicted_cate - 
+                      validation_data$true_te)^2)),
+    
+    # Mean Absolute Error
+    mae = mean(abs(validation_data$predicted_cate - 
+                   validation_data$true_te)),
+    
+    # Coverage probability of 95% CI
+    coverage = mean(validation_data$true_te >= validation_data$pred_lower & 
+                   validation_data$true_te <= validation_data$pred_upper)
+  )
+  
+  # Scatter plot with 45-degree line
+  scatter_plot <- ggplot(validation_data, 
+                        aes(x = true_te, y = predicted_cate)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(intercept = 0, slope = 1, 
+                color = "red", linetype = "dashed") +
+    geom_smooth(method = "loess", color = "blue") +
+    theme_minimal() +
+    labs(title = "Predicted vs True Treatment Effects",
+         subtitle = paste("Correlation:", 
+                         round(metrics$correlation, 3)),
+         x = "True Treatment Effect",
+         y = "Predicted Treatment Effect")
+  
+  # Bland-Altman plot
+  ba_data <- data.frame(
+    mean = (validation_data$predicted_cate + 
+            validation_data$true_te) / 2,
+    difference = validation_data$predicted_cate - 
+                 validation_data$true_te
+  )
+  
+  bland_altman <- ggplot(ba_data, 
+                        aes(x = mean, y = difference)) +
+    geom_point(alpha = 0.5) +
+    geom_hline(yintercept = mean(ba_data$difference), 
+               color = "red", linetype = "dashed") +
+    geom_hline(yintercept = mean(ba_data$difference) + 
+                 1.96 * sd(ba_data$difference), 
+               color = "blue", linetype = "dashed") +
+    geom_hline(yintercept = mean(ba_data$difference) - 
+                 1.96 * sd(ba_data$difference), 
+               color = "blue", linetype = "dashed") +
+    theme_minimal() +
+    labs(title = "Bland-Altman Plot",
+         subtitle = "Difference vs Average of Predicted and True Effects",
+         x = "Average of Predicted and True Effects",
+         y = "Difference (Predicted - True)")
+  
+  # Create deciles of predicted CATEs for calibration plot
+  validation_data$pred_decile <- cut(validation_data$predicted_cate,
+                                   breaks = quantile(validation_data$predicted_cate, 
+                                                   probs = seq(0, 1, 0.1)),
+                                   labels = 1:10,
+                                   include.lowest = TRUE)
+  
+  calibration_data <- validation_data %>%
+    group_by(pred_decile) %>%
+    summarise(
+      mean_predicted = mean(predicted_cate),
+      mean_true = mean(true_te),
+      se = sd(true_te) / sqrt(n()),
+      lower = mean_true - 1.96 * se,
+      upper = mean_true + 1.96 * se,
+      n = n()
+    )
+  
+  calibration_plot <- ggplot(calibration_data, 
+                           aes(x = mean_predicted, y = mean_true)) +
+    geom_point(aes(size = n)) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    geom_abline(intercept = 0, slope = 1, 
+                color = "red", linetype = "dashed") +
+    theme_minimal() +
+    labs(title = "Calibration Plot",
+         subtitle = "Average True vs Predicted Effects by Decile",
+         x = "Predicted Treatment Effect",
+         y = "True Treatment Effect",
+         size = "Sample Size")
+  
+  # Subgroup analysis
+  subgroup_performance <- validation_data %>%
+    mutate(
+      abs_error = abs(predicted_cate - true_te),
+      in_ci = true_te >= pred_lower & true_te <= pred_upper
+    ) %>%
+    group_by(anticoag, diabetes) %>%
+    summarise(
+      n = n(),
+      correlation = cor(predicted_cate, true_te),
+      rmse = sqrt(mean((predicted_cate - true_te)^2)),
+      coverage = mean(in_ci),
+      mean_true_te = mean(true_te),
+      mean_pred_te = mean(predicted_cate),
+      .groups = 'drop'
+    )
+  
+  # Performance summary
+  performance_summary <- data.frame(
+    Metric = c("Correlation", "RMSE", "MAE", "95% CI Coverage"),
+    Value = c(metrics$correlation, metrics$rmse, 
+              metrics$mae, metrics$coverage)
+  )
+  
+  return(list(
+    metrics = metrics,
+    performance_summary = performance_summary,
+    scatter_plot = scatter_plot,
+    bland_altman = bland_altman,
+    calibration_plot = calibration_plot,
+    subgroup_performance = subgroup_performance,
+    validation_data = validation_data
+  ))
+}
+
+# Run validation
+validation_results <- validate_cates(
+  predicted_cates = cate_results$individual_results,
+  true_data = rct_data
+)
+
+# Print overall performance metrics
+print("Overall Performance Metrics:")
+print(validation_results$performance_summary)
+
+# Print subgroup performance
+print("\nPerformance by Subgroup:")
+print(validation_results$subgroup_performance)
+
+# Display plots
+print(validation_results$scatter_plot)
+print(validation_results$bland_altman)
+print(validation_results$calibration_plot)
+
+# Additional visualization: Treatment effect heterogeneity by key covariates
+covariate_plots <- list()
+
+# Age effect
+covariate_plots[["age"]] <- ggplot(validation_results$validation_data, 
+                                  aes(x = age_s)) +
+  geom_point(aes(y = true_te), alpha = 0.3, color = "blue") +
+  geom_point(aes(y = predicted_cate), alpha = 0.3, color = "red") +
+  geom_smooth(aes(y = true_te, color = "True"), method = "loess") +
+  geom_smooth(aes(y = predicted_cate, color = "Predicted"), method = "loess") +
+  theme_minimal() +
+  labs(title = "Treatment Effect by Age",
+       x = "Standardized Age",
+       y = "Treatment Effect",
+       color = "Type")
+
+print(covariate_plots[["age"]])
+```
+```{r}
+validation_results$performance_summary %>% xtable(caption='Evaluation metrics for actual vs. predicted CATE estimates.', auto=T, digits=3)
+```
+
+
+```{r}
+tst <- data.frame(
+  Actual=rct_data$true_te,
+  Predicted=cate_results$individual_results$bleeding_risk_increase
+)
+
+tst_long <- tst %>%
+  pivot_longer(cols=c(Actual, Predicted), names_to='Type', values_to='Value') 
+
+p <- ggplot(tst_long, aes(x=Type, y=Value, fill=Type)) +
+  geom_boxplot() +
+  labs(
+    title='Boxplots of Actual vs. Predicted CATEs',
+    x='Type',
+    y='CATE'
+  ) +
+  theme_classic()
+ggsave("actual_vs_predicted.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+```
+
+```{r}
+p <- tst %>%
+  mutate(`Risk Strata`=factor(ntile(Predicted, 5))) %>%
+  ggplot(aes(x=`Risk Strata`, y=Predicted, fill=`Risk Strata`)) +
+  geom_boxplot() + 
+  labs(
+    title='Distribution of Predicted CATEs by Strata',
+    x='Strata',
+    y='CATE'
+  ) +
+  theme_classic()
+ggsave("dist_by_strata.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+
+```
+```{r}
+cate_results$interval_plot
+validation_results$scatter_plot
+te_analysis$risk_subgroups %>% xtable(caption='Comparison of treatment effect stratified based on baseline risk of experiencing a bleeding event.', auto=T, digits=3)
+```
+
