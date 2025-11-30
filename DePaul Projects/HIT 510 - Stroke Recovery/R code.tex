@@ -1,0 +1,1344 @@
+\begin{lstlisting}
+## ----setup, include=FALSE-------------------------------------------------------------------------------------------------------
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(tableone)
+library(kableExtra)
+library(htmlTable)
+library(gtsummary)
+library(WeightIt)
+library(survey)
+library(flextable)
+library(grf)
+library(clipr)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+theme_custom <- function(base_size = 14, axis_title_size = 16, axis_text_size = 14) {
+  theme(
+    axis.title.x = element_text(size = axis_title_size),
+    axis.title.y = element_text(size = axis_title_size),
+    axis.text.x  = element_text(size = axis_text_size),
+    axis.text.y  = element_text(size = axis_text_size),
+    axis.text
+  )
+}
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+data <- read_tsv('data/36422-0001-Data.tsv')
+cat('Dim:', dim(data), '\n')
+head(data)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df <- data %>%
+  rename(
+    'GENDER' = FEMALE
+  ) %>%
+  mutate(
+    Facility = factor(
+      case_when(
+        NEWFAC_NUM == 1 ~ 'New Jersey',
+        NEWFAC_NUM == 2 ~ 'New York',
+        NEWFAC_NUM == 3 ~ 'Iowa',
+        NEWFAC_NUM == 4 ~ 'California',
+        NEWFAC_NUM == 5 ~ 'Illinois',
+        NEWFAC_NUM == 6 ~ 'Texas',
+        NEWFAC_NUM == 7 ~ 'Washington',
+        NEWFAC_NUM == 8 ~ 'New York',
+        NEWFAC_NUM == 9 ~ 'Texas',
+        NEWFAC_NUM == 10 ~ 'Kentucky',
+        NEWFAC_NUM == 11 ~ 'Florida'
+      )
+    ),
+    
+    AGE_CAT = factor(
+      case_when(
+        AGE_CAT == 1 ~ '<=54',
+        AGE_CAT == 2 ~ '55-64',
+        AGE_CAT == 3 ~ '65-74',
+        AGE_CAT == 4 ~ '75-84',
+        AGE_CAT == 5 ~ '85+'
+      ), levels=c('<=54', '55-64', '65-74', '75-84', '85+')
+    ),
+    
+    GENDER = factor(
+      case_when(
+        GENDER == 0 ~ 'Male',
+        GENDER == 1 ~ 'Female'
+      )
+    ),
+    
+    RACE = factor(
+      case_when(
+        RACE == 1 ~ 'White',
+        RACE == 2 ~ 'Black',
+        RACE == 3 ~ 'Hispanic',
+        RACE == 4 ~ 'Other'
+      )
+    ),
+    
+    MARITAL = factor(
+      case_when(
+        MARITAL == 1 ~ 'Never married',
+        MARITAL == 2 ~ 'Married',
+        MARITAL == 3 ~ 'Divorced',
+        MARITAL == 4 ~ 'Widowed/Separated'
+      )
+    ),
+
+    
+    ADMITFROM = factor(
+      case_when(
+        ADMITFROM == 1 ~ 'Home',
+        ADMITFROM == 2 ~ 'Skilled nursing facility',
+        ADMITFROM == 3 ~ 'Acute',
+        ADMITFROM == 4 ~ 'Other medical'
+      )
+    ),
+    
+    LIVESETTING_A = factor(
+      case_when(
+        LIVESETTING_A == 1 ~ 'Home',
+        LIVESETTING_A == 2 ~ 'Other'
+      )
+    ),
+    
+    LIVEWITH_A = factor(
+      case_when(
+        LIVEWITH_A == 1 ~ 'Alone',
+        LIVEWITH_A == 2 ~ 'Family',
+        LIVEWITH_A == 3 ~ 'Other'
+      )
+    ),
+    
+    VOCCATEGORY_A = factor(
+      case_when(
+        VOCCATEGORY_A == 1 ~ 'Employed',
+        VOCCATEGORY_A == 2 ~ 'Sheltered',
+        VOCCATEGORY_A == 3 ~ 'Student',
+        VOCCATEGORY_A == 4 ~ 'Homemaker',
+        VOCCATEGORY_A == 5 ~ 'Not working',
+        VOCCATEGORY_A == 6 ~ 'Retired (Age)',
+        VOCCATEGORY_A == 7 ~ 'Retired (Disability)'
+      )
+    ),
+    
+    VOCEFFORT_A = factor(
+      case_when(
+        VOCEFFORT_A == 1 ~ 'Full-time',
+        VOCEFFORT_A == 2 ~ 'Part-time',
+        VOCEFFORT_A == 3 ~ 'Adjusted workload'
+      )
+    ),
+    
+    PAYPRIME = factor(
+      case_when(
+        PAYPRIME == 1 ~ 'Blue Cross',
+        PAYPRIME == 2 ~ 'Medicare',
+        PAYPRIME == 3 ~ 'Medicaid',
+        PAYPRIME == 4 ~ 'Commercial insurance',
+        PAYPRIME == 5 ~ 'Managed Care',
+        PAYPRIME == 6 ~ 'Other',
+        PAYPRIME == 7 ~ 'None'
+      )
+    ),
+    
+    PAYSECOND = factor(
+      case_when(
+        PAYSECOND == 1 ~ 'Blue Cross',
+        PAYSECOND == 2 ~ 'Medicare',
+        PAYSECOND == 3 ~ 'Medicaid',
+        PAYSECOND == 4 ~ 'Commercial insurance',
+        PAYSECOND == 5 ~ 'Managed Care',
+        PAYSECOND == 6 ~ 'Other',
+        PAYSECOND == 7 ~ 'None'
+      )
+    ),
+    
+    DIAG_MAIN = factor(
+      case_when(
+        DIAG_MAIN == 1 ~ 'Hemorrhagic stroke',
+        DIAG_MAIN == 2 ~ 'Ischemic stroke',
+        DIAG_MAIN == 3 ~ 'Other stroke',
+        DIAG_MAIN == 4 ~ 'Other circulatory disease',
+        DIAG_MAIN == 5 ~ 'Other medical condition'
+      )
+    ),
+    
+    DIAG_IG = factor(
+      case_when(
+        DIAG_IG == 1 ~ 'Left-body stroke',
+        DIAG_IG == 2 ~ 'Right-body stroke',
+        DIAG_IG == 3 ~ 'Bilateral stroke',
+        DIAG_IG == 4 ~ 'No paresis stroke',
+        DIAG_IG == 5 ~ 'Other stroke'
+      )
+    ),
+    
+    LIVESETTING_D = factor(
+      case_when(
+        LIVESETTING_D == 1 ~ 'Home',
+        LIVESETTING_D == 2 ~ 'Skilled nursing facility',
+        LIVESETTING_D == 3 ~ 'Acute',
+        LIVESETTING_D == 4 ~ 'Other'
+      )
+    ),
+    
+    LIVEWITH_D = factor(
+      case_when(
+        LIVEWITH_D == 1 ~ 'Alone',
+        LIVEWITH_D == 2 ~ 'Family',
+        LIVEWITH_D == 3 ~ 'Friends',
+        LIVEWITH_D == 4 ~ 'Attendant',
+        LIVEWITH_D == 5 ~ 'Other'
+      )
+    ),
+    
+    DISTANCE_WALKED_A = factor(
+      case_when(
+        DISTANCE_WALKED_A == 0 ~ 'Activity does not occur',
+        DISTANCE_WALKED_A == 1 ~ '<50 ft',
+        DISTANCE_WALKED_A == 2 ~'50-149 ft',
+        DISTANCE_WALKED_A == 3 ~ '150+ ft'
+      ), levels=c('Activity does not occur', '<50 ft', '50-149 ft', '150+ ft'), ordered=T
+    ),
+    
+    DISTANCE_WALKED_D = factor(
+      case_when(
+        DISTANCE_WALKED_D == 0 ~ 'Activity does not occur',
+        DISTANCE_WALKED_D == 1 ~ '<50 ft',
+        DISTANCE_WALKED_D == 2 ~'50-149 ft',
+        DISTANCE_WALKED_D == 3 ~ '150+ ft'
+      ), levels=c('Activity does not occur', '<50 ft', '50-149 ft', '150+ ft'), ordered=T
+    ),
+    
+    LIVESETTING_F = factor(
+      case_when(
+        LIVESETTING_F == 1 ~ 'Home',
+        LIVESETTING_F == 2 ~ 'Skilled nursing facility',
+        LIVESETTING_F == 3 ~ 'Acute',
+        LIVESETTING_F == 4 ~ 'Intermediate Care',
+        LIVESETTING_F == 5 ~ 'Skilled Nursing Facility',
+        LIVESETTING_F == 8 ~ 'Chronic Hospital',
+        LIVESETTING_F == 9 ~ 'Rehabilitation Facility',
+        LIVESETTING_F == 10 ~ 'Other',
+        LIVESETTING_F == 11 ~ 'Undocument',
+        LIVESETTING_F == 12 ~ 'Alternate Level of Care Unit',
+        LIVESETTING_F == 13 ~ 'Subacute Setting'
+      )
+    ),
+    
+    LIVEWITH_F = factor(
+      case_when(
+        LIVEWITH_F == 1 ~ 'Alone',
+        LIVEWITH_F == 2 ~ 'Family',
+        LIVEWITH_F == 3 ~ 'Friends',
+        LIVEWITH_F == 4 ~ 'Attendant',
+        LIVEWITH_F == 5 ~ 'Other'
+      )
+    ),
+    
+    VOCEFFORT_F = factor(
+      case_when(
+        VOCEFFORT_F == 1 ~ 'Full-time',
+        VOCEFFORT_F == 2 ~ 'Part-time',
+        VOCEFFORT_F == 3 ~ 'Adjusted workload'
+      )
+    ),
+    
+    VOCCATEGORY_F = factor(
+      case_when(
+        VOCCATEGORY_F == 1 ~ 'Employed',
+        VOCCATEGORY_F == 2 ~ 'Sheltered',
+        VOCCATEGORY_F == 3 ~ 'Student',
+        VOCCATEGORY_F == 4 ~ 'Homemaker',
+        VOCCATEGORY_F == 5 ~ 'Not working',
+        VOCCATEGORY_F == 6 ~ 'Retired (Age)',
+        VOCCATEGORY_F == 7 ~ 'Retired (Disability)'
+      )
+    ),
+    
+    HLTHMAINTPRIME_F = factor(
+      case_when(
+        HLTHMAINTPRIME_F == 1 ~ 'Own care',
+        HLTHMAINTPRIME_F == 2 ~ 'Unpaid person/family',
+        HLTHMAINTPRIME_F == 3 ~ 'Paid person'
+      )
+    ),
+    
+    HLTHMAINTSECOND_F = factor(
+      case_when(
+        HLTHMAINTSECOND_F == 1 ~ 'Own care',
+        HLTHMAINTSECOND_F == 2 ~ 'Unpaid person/family',
+        HLTHMAINTSECOND_F == 3 ~ 'Paid person'
+      )
+    ),
+    
+    POSTDCCARE_NOW_F = factor(
+      case_when(
+        POSTDCCARE_NOW_F ==  1 ~ 'None',
+        POSTDCCARE_NOW_F == 2 ~ 'Outpatient',
+        POSTDCCARE_NOW_F == 3 ~ 'Home based',
+        POSTDCCARE_NOW_F == 4 ~ 'Outpatient + Home based',
+        POSTDCCARE_NOW_F == 5 ~ 'Inpatient hospital',
+        POSTDCCARE_NOW_F == 6 ~ 'Long-term care'
+      )
+    ),
+    
+    POSTDCCARE_ANY_F = factor(
+      case_when(
+        POSTDCCARE_ANY_F ==  1 ~ 'None',
+        POSTDCCARE_ANY_F == 2 ~ 'Outpatient',
+        POSTDCCARE_ANY_F == 3 ~ 'Home based',
+        POSTDCCARE_ANY_F == 4 ~ 'Outpatient + Home based',
+        POSTDCCARE_ANY_F == 5 ~ 'Inpatient hospital',
+        POSTDCCARE_ANY_F == 6 ~ 'Long-term care'
+      )
+    ),
+    
+    POSTDC_HOSP = factor(
+      case_when(
+        POSTDC_HOSP == 1 ~ 'None',
+        POSTDC_HOSP == 2 ~ 'Med/surgery',
+        POSTDC_HOSP == 3 ~ 'Rehab',
+        POSTDC_HOSP == 4 ~ 'Both'
+      )
+    ),
+    
+    SATISOVERALL_F = factor(
+      case_when(
+        SATISOVERALL_F == 1 ~ 'Very dissatisfied',
+        SATISOVERALL_F == 2 ~ 'Somewhat dissatisfied',
+        SATISOVERALL_F == 3 ~ 'Somewhat satisfied',
+        SATISOVERALL_F == 4 ~ 'Very satisfied'
+      ), levels=c('Very dissatisfied', 'Somewhat dissatisfied', 'Somewhat satisfied', 'Very satisfied'), ordered=T
+    ),
+    
+    SATISQOL_F = factor(
+      case_when(
+        SATISQOL_F == 1 ~ 'Very dissatisfied',
+        SATISQOL_F == 2 ~ 'Somewhat dissatisfied',
+        SATISQOL_F == 3 ~ 'Somewhat satisfied',
+        SATISQOL_F == 4 ~ 'Very satisfied'
+      ), levels=c('Very dissatisfied', 'Somewhat dissatisfied', 'Somewhat satisfied', 'Very satisfied'), ordered=T
+    ),
+    
+    SATISGOAL_F = factor(
+      case_when(
+        SATISGOAL_F == 1 ~ 'Very dissatisfied',
+        SATISGOAL_F == 2 ~ 'Somewhat dissatisfied',
+        SATISGOAL_F == 3 ~ 'Somewhat satisfied',
+        SATISGOAL_F == 4 ~ 'Very satisfied'
+      ), levels=c('Very dissatisfied', 'Somewhat dissatisfied', 'Somewhat satisfied', 'Very satisfied'), ordered=T
+    ),
+    
+    SATISCOMPAR_F = factor(
+      case_when(
+        SATISCOMPAR_F == 1 ~ 'Very dissatisfied',
+        SATISCOMPAR_F == 2 ~ 'Somewhat dissatisfied',
+        SATISCOMPAR_F == 3 ~ 'Somewhat satisfied',
+        SATISCOMPAR_F == 4 ~ 'Very satisfied'
+      ), levels=c('Very dissatisfied', 'Somewhat dissatisfied', 'Somewhat satisfied', 'Very satisfied'), ordered=T
+    ),
+    
+    DISTANCE_WALKED_F = factor(
+      case_when(
+        DISTANCE_WALKED_F == 0 ~ 'Activity does not occur',
+        DISTANCE_WALKED_F == 1 ~ '<50 ft',
+        DISTANCE_WALKED_F == 2 ~'50-149 ft',
+        DISTANCE_WALKED_F == 3 ~ '150+ ft'
+      ), levels=c('Activity does not occur', '<50 ft', '50-149 ft', '150+ ft'), ordered=T
+    ),
+    
+    DISTANCE_WALKED_Y = factor(
+      case_when(
+        DISTANCE_WALKED_Y == 0 ~ 'Activity does not occur',
+        DISTANCE_WALKED_Y == 1 ~ '<50 ft',
+        DISTANCE_WALKED_Y == 2 ~'50-149 ft',
+        DISTANCE_WALKED_Y == 3 ~ '150+ ft'
+      ), levels=c('Activity does not occur', '<50 ft', '50-149 ft', '150+ ft'), ordered=T
+    ),
+    
+    SOCIALSUPP1_D = factor(
+      case_when(
+        SOCIALSUPP1_D == 1 ~ 'Most of the time',
+        SOCIALSUPP1_D == 2 ~ 'Some of the time',
+        SOCIALSUPP1_D == 3 ~ 'Hardly ever',
+        SOCIALSUPP1_D == 4 ~ 'Don\'t know/refused'
+      ), levels=c('Most of the time','Some of the time','Hardly ever','Don\'t know/refused'), ordered=T
+    ),
+    
+    SOCIALSUPP2_D = factor(
+      case_when(
+        SOCIALSUPP2_D == 1 ~ 'Most of the time',
+        SOCIALSUPP2_D == 2 ~ 'Some of the time',
+        SOCIALSUPP2_D == 3 ~ 'Hardly ever',
+        SOCIALSUPP2_D == 4 ~ 'Don\'t know/refused'
+      ), levels=c('Most of the time','Some of the time','Hardly ever','Don\'t know/refused'), ordered=T
+    ),
+    
+    SOCIALSUPP1_F = factor(
+      case_when(
+        SOCIALSUPP1_F == 1 ~ 'Most of the time',
+        SOCIALSUPP1_F == 2 ~ 'Some of the time',
+        SOCIALSUPP1_F == 3 ~ 'Hardly ever',
+        SOCIALSUPP1_F == 4 ~ 'Don\'t know/refused'
+      ), levels=c('Most of the time','Some of the time','Hardly ever','Don\'t know/refused'), ordered=T
+    ),
+    
+    SOCIALSUPP2_F = factor(
+      case_when(
+        SOCIALSUPP2_F == 1 ~ 'Most of the time',
+        SOCIALSUPP2_F == 2 ~ 'Some of the time',
+        SOCIALSUPP2_F == 3 ~ 'Hardly ever',
+        SOCIALSUPP2_F == 4 ~ 'Don\'t know/refused'
+      ), levels=c('Most of the time','Some of the time','Hardly ever','Don\'t know/refused'), ordered=T
+    ),
+    
+    STATUS_D_TO_F = factor(
+      case_when(
+        STATUS_D_TO_F == 1 ~ 'Re-interviewed patient',
+        STATUS_D_TO_F == 2 ~ 'Re-interviewed proxy',
+        STATUS_D_TO_F == 3 ~ 'Deceased',
+        STATUS_D_TO_F == 4 ~ 'Refused',
+        STATUS_D_TO_F == 5 ~ 'Unable to locate'
+      )
+    ),
+    
+    STATUS_F_TO_Y = factor(
+      case_when(
+        STATUS_F_TO_Y == 1 ~ 'Re-interviewed patient',
+        STATUS_F_TO_Y == 2 ~ 'Re-interviewed proxy',
+        STATUS_F_TO_Y == 3 ~ 'Deceased',
+        STATUS_F_TO_Y == 4 ~ 'Refused',
+        STATUS_F_TO_Y == 5 ~ 'Unable to locate'
+      )
+    ),
+    
+    STATUS_D_TO_Y = factor(
+      case_when(
+        STATUS_D_TO_Y == 1 ~ 'Re-interviewed patient',
+        STATUS_D_TO_Y == 2 ~ 'Re-interviewed proxy',
+        STATUS_D_TO_Y == 3 ~ 'Deceased',
+        STATUS_D_TO_Y == 4 ~ 'Refused',
+        STATUS_D_TO_Y == 5 ~ 'Unable to locate'
+      )
+    )
+
+  ) %>%
+  mutate(
+    across(
+      all_of(c('DIAG_TIA', 'MARRIED', 'RACE_WHITE', 'DIAG_TIA', 'COMORB_ARTHRITIS', 'COMORB_CANCER', 'COMORB_RESPIRATORY', 'COMORB_DIABETES', 'COMORB_HTN', 'COMORB_HEART', 'COMORB_OTHER_CIRC', 'COMORB_KIDNEY', 'COMORB_OBESITY', 'COMORB_MENTAL', 'COMORB_FRACTURES', 'COMPL_ACUTERESPIR', 'COMPL_INFECTIOUS', 'COMPL_BEDSORES', 'COMPL_INFECT_KIDNEY', 'COMPL_DEHYDRATION', 'STROKESYM_HEMIP', 'STROKESYM_PARALYSIS', 'STROKESYM_APHASIA', 'STROKESYM_DYSPHAGIA', 'STROKESYM_NEUROMUSC', 'HOMEHEALTH_D', 'SIGNS_OF_DEHYDRATION_A', 'SHORT_BREATH_EXERTION_A', 'SHORT_BREATH_REST_A', 'STANDING_PROBLEM_A', 'SIGNS_OF_DEHYDRATION_D', 'SHORT_BREATH_EXERTION_D', 'SHORT_BREATH_REST_D', 'STANDING_PROBLEM_D', 'OPTIMISTIC_Y_N', 'INPERSON_INTERVIEW', 'CESDDEPRESSED_D', 'CESDDEPRESSED_F', 'CESDDEPRESSED_Y')),
+             ~ factor(if_else(.x == 1, 'Yes', 'No')),
+             .names = "{.col}"
+    ),
+    across(
+      all_of(c('CESDPOSITIVE4_D', 'CESDPOSITIVE8_D', 'CESDPOSITIVE12_D', 'CESDPOSITIVE16_D', 'CESDPOSITIVE4_F', 'CESDPOSITIVE8_F', 'CESDPOSITIVE12_F', 'CESDPOSITIVE16_F', 'CESDPOSITIVE4_Y', 'CESDPOSITIVE8_Y', 'CESDPOSITIVE12_Y', 'CESDPOSITIVE16_Y', 'NEWCESD1_D', 'NEWCESD2_D', 'NEWCESD3_D', 'NEWCESD5_D', 'NEWCESD6_D', 'NEWCESD7_D', 'NEWCESD9_D', 'NEWCESD10_D', 'NEWCESD11_D', 'NEWCESD13_D', 'NEWCESD14_D', 'NEWCESD15_D', 'NEWCESD17_D', 'NEWCESD18_D', 'NEWCESD19_D', 'NEWCESD20_D', 'NEWCESD1_F', 'NEWCESD2_F', 'NEWCESD3_F', 'NEWCESD5_F', 'NEWCESD6_F', 'NEWCESD7_F', 'NEWCESD9_F', 'NEWCESD10_F', 'NEWCESD11_F', 'NEWCESD13_F', 'NEWCESD14_F', 'NEWCESD15_F', 'NEWCESD17_F', 'NEWCESD18_F', 'NEWCESD19_F', 'NEWCESD20_F', 'NEWCESD1_Y', 'NEWCESD2_Y', 'NEWCESD3_Y', 'NEWCESD5_Y', 'NEWCESD6_Y', 'NEWCESD7_Y', 'NEWCESD9_Y', 'NEWCESD10_Y', 'NEWCESD11_Y', 'NEWCESD13_Y', 'NEWCESD14_Y', 'NEWCESD15_Y', 'NEWCESD17_Y', 'NEWCESD18_Y', 'NEWCESD19_Y', 'NEWCESD20_Y')),
+      ~ factor(
+          case_when(
+            .x == 0 ~ 'Rarely or none of the time (Less than 1 day)',
+            .x == 1 ~ 'Some or little of the time (1-2 days)',
+            .x == 2 ~ 'Occasionally or a moderate amount of time (3-4 days)',
+            .x == 3 ~ 'Most or all of the time (5-7 days)'
+          ),
+          levels = c(
+            'Rarely or none of the time (Less than 1 day)',
+            'Some or little of the time (1-2 days)',
+            'Occasionally or a moderate amount of time (3-4 days)',
+            'Most or all of the time (5-7 days)'
+          ), ordered = TRUE
+          )
+      ),
+    across(
+      all_of(c('NEWCESD4_D', 'NEWCESD8_D', 'NEWCESD12_D', 'NEWCESD16_D', 'NEWCESD4_F', 'NEWCESD8_F', 'NEWCESD12_F', 'NEWCESD16_F', 'NEWCESD4_Y', 'NEWCESD8_Y', 'NEWCESD12_Y', 'NEWCESD16_Y')),
+      ~ factor(
+          case_when(
+            .x == 0 ~ 'Most or all of the time (5-7 days)',
+            .x == 1 ~ 'Occasionally or a moderate amount of time (3-4 days)',
+            .x == 2 ~ 'Some or little of the time (1-2 days)',
+            .x == 3 ~ 'Rarely or none of the time (Less than 1 day)'
+          ),
+          levels = c(
+            'Most or all of the time (5-7 days)',
+            'Occasionally or a moderate amount of time (3-4 days)',
+            'Some or little of the time (1-2 days)',
+            'Rarely or none of the time (Less than 1 day)'
+          ), ordered=T
+        )
+      ),
+    across(
+      all_of(c('COMPAR_SOCIALOUT_F', 'COMPAR_SOCIALIN_F', 'COMPAR_HOBBY_F', 'COMPAR_RELIGIOUS_F', 'COMPAR_SOCIALOUT_Y', 'COMPAR_SOCIALIN_Y', 'COMPAR_HOBBY_Y', 'COMPAR_RELIGIOUS_Y')),
+      ~ factor(
+         case_when(
+            .x == 1 ~ 'Did not participate in this life situation',
+            .x == 2 ~ 'Participated monthly (Once every 3-4 weeks)',
+            .x == 3 ~ 'Participated bi-weekly (Once every 2 weeks)',
+            .x == 4 ~ 'Participated weekly (1-4 days per week)',
+            .x == 5 ~ 'Participated daily/Almost daily (5 or more days per week)'
+          ),
+         levels = c(
+            'Did not participate in this life situation',
+            'Participated monthly (Once every 3-4 weeks)',
+            'Participated bi-weekly (Once every 2 weeks)',
+            'Participated weekly (1-4 days per week)',
+            'Participated daily/Almost daily (5 or more days per week)'
+          ), ordered=T
+         )
+      )
+    )
+
+head(df)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df <- df %>%
+  mutate(across(everything(), ~ replace(.x, .x == -9, NA)))
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+missing_percent <- df %>%
+  summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(cols = everything(), names_to = 'Variable', values_to = 'PercentMissing') %>%
+  arrange(desc(PercentMissing))
+
+missing_percent
+missing_percent %>% filter(Variable == 'DUKE_Y')
+missing_percent %>% filter(str_detect(Variable, regex('FIMTOTAL|FIMMOTOR|FIMCOGN', ignore_case=T)))
+missing_percent %>% filter(str_detect(Variable, regex('DUKE', ignore_case=T)))
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df <- df %>%
+  mutate(
+    support_high_Y = factor(
+      case_when(
+        DUKE_Y >= 50 ~ 1,
+        DUKE_Y < 50 ~ 0
+      )
+    ),
+    support_high_F = factor(
+      case_when(
+        DUKE_F >= 50 ~ 1,
+        DUKE_F < 50 ~ 0
+      )
+    )
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df <- df %>%
+  mutate(
+    FIM_MOTOR_CHANGE_Y = FIMMOTOR_Y - FIMMOTOR_A,
+    FIM_COGN_CHANGE_Y = FIMCOGN_Y - FIMCOGN_A,
+    FIM_TOTAL_CHANGE_Y = FIMTOTAL_Y - FIMTOTAL_A,
+    
+    FIM_MOTOR_CHANGE_F = FIMMOTOR_F - FIMMOTOR_A,
+    FIM_COGN_CHANGE_F = FIMCOGN_F - FIMCOGN_A,
+    FIM_TOTAL_CHANGE_F = FIMTOTAL_F - FIMTOTAL_A,
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df %>%
+  saveRDS('data/data.rds')
+df %>% 
+  write_csv('data/data_cleaned.csv')
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+
+vars_F <- c(
+  "support_high_F",                # treatment
+  "FIM_TOTAL_CHANGE_F",           # outcome
+  "FIM_MOTOR_CHANGE_F",
+  "FIM_COGN_CHANGE_F",
+  "GENDER", "RACE", "AGE_CAT",       # demographics
+  "SCHOOL", "MARITAL",
+  "FIMTOTAL_A",                   # baseline functional status
+  "LOS",                          # stroke severity proxy
+  "COMORB_DIABETES",              # comorbidities
+  "COMORB_HTN",
+  "COMORB_HEART",
+  "COMORB_OBESITY",
+  "COMORB_CANCER",
+  "COMORB_MENTAL",
+  "COMORB_RESPIRATORY",
+  "COMORB_ARTHRITIS",
+  "COMORB_KIDNEY",
+  "COMORB_OTHER_CIRC",
+  "COMORB_FRACTURES",
+  "COMORBIDSUM"
+  
+)
+
+df_F <- df %>%
+  select(all_of(vars_F)) %>%
+  drop_na()
+
+head(df_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+all_vars_F <- c("GENDER", "RACE", "AGE_CAT", "SCHOOL", "MARITAL", "FIMTOTAL_A", "support_high_F", "FIM_TOTAL_CHANGE_F", "FIM_MOTOR_CHANGE_F", "FIM_COGN_CHANGE_F", "LOS", "COMORB_DIABETES", "COMORB_HTN", "COMORB_HEART", "COMORB_OBESITY", "COMORB_CANCER", "COMORB_MENTAL", "COMORB_RESPIRATORY", "COMORB_ARTHRITIS", "COMORB_KIDNEY", "COMORB_OTHER_CIRC", "COMORB_FRACTURES", "COMORBIDSUM")
+
+factor_vars_F <- names(df_F)[sapply(df_F, is.factor)]
+table1_F <- CreateTableOne(vars=all_vars_F, strata='support_high_F', data=df_F, factorVars=factor_vars_F)
+t1_F <- print(table1_F, printToggle = F, noSpaces = T, showAllLevels = T, missing=F, quote=F)
+kbl(t1_F, booktabs = T, longtable=T, format = "latex") %>%
+  kable_styling(latex_options = c('striped', 'repeat_header')) %>%
+  write_clip()
+
+
+# kableone(t1_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+str(df)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+tst <- print(table1_F, printToggle=F, noSpaces=T, showAllLevels=F, missing=F, quote=F)
+print(tst)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+gt_table_F <- df_F %>%
+  as_tibble() %>%
+  rename(
+    `Gender` = GENDER,
+    `Race/Ethnicity` = RACE,
+    `Age Category` = AGE_CAT,
+    `Education Level` = SCHOOL,
+    `Marital Status` = MARITAL,
+    `Admission FIM Total` = FIMTOTAL_A,
+    # `FIM Total Change` = FIM_TOTAL_CHANGE_F,
+    # `FIM Motor Change` = FIM_MOTOR_CHANGE_F,
+    # `FIM Cognitive Change` = FIM_COGN_CHANGE_F,
+    `Length of Stay` = LOS,
+    `Comorbidity: Diabetes` = COMORB_DIABETES,
+    `Comorbidity: Hypertension` = COMORB_HTN,
+    `Comorbidity: Heart Disease` = COMORB_HEART,
+    `Comorbidity: Obesity` = COMORB_OBESITY,
+    `Comorbidity: Cancer` = COMORB_CANCER,
+    `Comorbidity: Mental Illness` = COMORB_MENTAL,
+    `Comorbidity: Respiratory Disease` = COMORB_RESPIRATORY,
+    `Comorbidity: Arthritis` = COMORB_ARTHRITIS,
+    `Comorbidity: Kidney Disease` = COMORB_KIDNEY,
+    `Comorbidity: Other Circulatory` = COMORB_OTHER_CIRC,
+    `Comorbidity: Fractures` = COMORB_FRACTURES,
+    `Comorbidity Count` = COMORBIDSUM,
+    `Support Level` = support_high_F
+  ) %>%
+  select(-c(FIM_TOTAL_CHANGE_F, FIM_MOTOR_CHANGE_F, FIM_COGN_CHANGE_F)) %>%
+  # select(all_of(c("Support Level", all_vars_F))) %>%
+  tbl_summary(
+    by=`Support Level`,
+    digits = all_continuous() ~ 1,
+    type = all_categorical() ~ "categorical"
+    ) %>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits=3)) %>%
+  # add_overall() %>%
+  # add_n() %>%
+  modify_spanning_header(c("stat_1", "stat_2") ~ "Stratified by social support.") %>%
+  bold_labels() %>%
+  italicize_levels()
+  
+
+gt_table_F
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_F %>%
+  tbl_summary()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+library(huxtable)
+library(xtable)
+gt_table_F %>% as_gt() %>% gt::as_latex() %>% write_clip()
+# as_kable_extra(gt_table_F, format = "latex") %>% write_clip()
+as_kable(gt_table_F, format = "latex", longtable=T, booktabs=T, escape=T) %>% write_clip()
+as_hux_table(tbl) %>% huxtable::to_latex() %>% write_clip()
+kbl(gt_table_F, booktabs = T, longtable=T, format = "latex") #%>% write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+latex_table_code <- as_kable(
+  gt_table_F,
+  format = "latex",
+  longtable = TRUE,
+  booktabs = TRUE,
+  escape = FALSE  # Allow special LaTeX characters in labels
+)
+# latex_table_code <- str_replace_all(latex_table_code, "(\\d)%(?=[^\\d])", "\\1\\\\%")
+
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+kable(gt_table_F, format = "latex", booktabs = TRUE, longtable=TRUE) %>%
+  kable_styling(latex_options = c("striped", "hold_position")) %>%
+  column_spec(1, width = "25em") %>%
+  add_header_above(c(" " = 4)) %>%
+  kable_classic(full_width = F, html_font = "Helvetica") %>% write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+library(WeightIt)
+ipw_model <- weightit(
+  support_high_F ~ AGE_CAT + GENDER + RACE + SCHOOL + MARITAL +
+                   FIMTOTAL_A + LOS +
+                   COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+                   COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+                   COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+                   COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  data = df_F,
+  method = "glm",
+  estimand = "ATE"
+)
+
+summary(ipw_model)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+library(survey)
+
+# Attach weights to original data
+df_F$weights <- ipw_model$weights
+
+# Set up survey design object
+svy_design_F <- svydesign(ids = ~1, data = df_F, weights = ~weights)
+summary(svy_design_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+library(cobalt)
+# Generate a balance table
+bt <- bal.tab(ipw_model, un = TRUE, m.threshold = 0.1)
+bt$Balance %>%
+  gt() %>%
+  tab_header(
+    title = "Covariate Balance Before and After Weighting"
+  ) %>%
+  fmt_number(
+    columns = where(is.numeric),
+    decimals = 3
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+love.plot(ipw_model, binary = "std", thresholds = c(m = 0.1))
+
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# lm_ipw_dr <- svyglm(FIM_TOTAL_CHANGE_F ~ support_high_F + AGE + GENDER + RACE + SCHOOL + MARITAL +
+#                     FIMTOTAL_A + LOS + COMORB_DIABETES + COMORB_HTN + COMORB_HEART,
+#                     design = svy_design)
+lm_ipw_total_F <- svyglm(
+  FIM_TOTAL_CHANGE_F ~ support_high_F + AGE_CAT + GENDER + RACE + SCHOOL + MARITAL +
+    FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  design = svy_design_F
+)
+
+summary(lm_ipw_total_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+lm_ipw_motor_F <- svyglm(
+  FIM_MOTOR_CHANGE_F ~ support_high_F + AGE_CAT + GENDER + RACE + SCHOOL + MARITAL +
+    FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  design = svy_design_F
+)
+
+
+summary(lm_ipw_motor_F)
+
+## -------------------------------------------------------------------------------------------------------------------------------
+lm_ipw_cogn_F <- svyglm(
+  FIM_COGN_CHANGE_F ~ support_high_F + AGE_CAT + GENDER + RACE + SCHOOL + MARITAL +
+    FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  design = svy_design_F
+)
+
+summary(lm_ipw_cogn_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# Create individual regression tables
+tbl_total_F <- tbl_regression(lm_ipw_total_F, exponentiate = FALSE)
+tbl_cogn_F  <- tbl_regression(lm_ipw_cogn_F,  exponentiate = FALSE)
+tbl_motor_F <- tbl_regression(lm_ipw_motor_F, exponentiate = FALSE)
+
+# Merge them side-by-side
+merged_tbl_F <- tbl_merge(
+  tbls = list(tbl_total_F, tbl_cogn_F, tbl_motor_F),
+  tab_spanner = c("**Total**", "**Cognition**", "**Motor**")
+)
+
+tbl_total_F %>%
+  as_kable_extra(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Survey-weighted linear regression estimating the effect of high support on FIM total score change at 3 months.",
+    label = 'tab:ipw_fim_total_F'
+  ) %>% 
+  column_spec(1, border_left = TRUE) %>%
+  column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+vars_Y <- c(
+  "FIM_TOTAL_CHANGE_Y", "FIM_MOTOR_CHANGE_Y", "FIM_COGN_CHANGE_Y",
+  "support_high_Y",
+  "AGE", "GENDER", "RACE", "SCHOOL", "MARITAL", "AGE_CAT",
+  "FIMTOTAL_A", "LOS",
+  "COMORB_DIABETES",              # comorbidities
+  "COMORB_HTN",
+  "COMORB_HEART",
+  "COMORB_OBESITY",
+  "COMORB_CANCER",
+  "COMORB_MENTAL",
+  "COMORB_RESPIRATORY",
+  "COMORB_ARTHRITIS",
+  "COMORB_KIDNEY",
+  "COMORB_OTHER_CIRC",
+  "COMORB_FRACTURES",
+  "COMORBIDSUM"
+)
+
+df_Y <- df %>%
+  select(all_of(vars_Y)) %>%
+  drop_na()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+ipw_model_Y <- weightit(
+  support_high_Y ~ AGE_CAT + GENDER + RACE + SCHOOL + MARITAL +
+    FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  data = df_Y,
+  method = "ps",
+  estimand = "ATE"
+)
+
+# Add weights to your data
+df_Y$weights <- ipw_model_Y$weights
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+svy_design_Y <- svydesign(ids = ~1, data = df_Y, weights = ~weights)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+lm_ipw_total_Y <- svyglm(
+  FIM_TOTAL_CHANGE_Y ~ support_high_Y + AGE_CAT + GENDER + RACE +
+    SCHOOL + MARITAL + FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  design = svy_design_Y
+)
+
+summary(lm_ipw_total_Y)
+
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+lm_ipw_motor_Y <- svyglm(
+  FIM_MOTOR_CHANGE_Y ~ support_high_Y + AGE_CAT + GENDER + RACE +
+    SCHOOL + MARITAL + FIMTOTAL_A + LOS +
+    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+  design = svy_design_Y
+)
+
+summary(lm_ipw_motor_Y)
+
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+lm_ipw_cogn_Y <- svyglm(FIM_COGN_CHANGE_Y ~ support_high_Y + AGE_CAT + GENDER + RACE +
+                        SCHOOL + MARITAL + FIMTOTAL_A + LOS +
+                        COMORB_DIABETES + COMORB_HTN + COMORB_HEART,
+                        design = svy_design_Y)
+summary(lm_ipw_cogn_Y)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# Create individual regression tables
+tbl_total_Y <- tbl_regression(lm_ipw_total_Y, exponentiate = FALSE)
+tbl_cogn_Y  <- tbl_regression(lm_ipw_cogn_Y,  exponentiate = FALSE)
+tbl_motor_Y <- tbl_regression(lm_ipw_motor_Y, exponentiate = FALSE)
+
+# Merge them side-by-side
+merged_tbl_Y <- tbl_merge(
+  tbls = list(tbl_total_Y, tbl_cogn_Y, tbl_motor_Y),
+  tab_spanner = c("**Total**", "**Cognition**", "**Motor**")
+)
+
+tbl_total_Y %>%
+  as_kable_extra(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Survey-weighted linear regression estimating the effect of high support on FIM total score change at 1 year.",
+    label = 'tab:ipw_fim_total_F'
+  ) %>% 
+  column_spec(1, border_left = TRUE) %>%
+  column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+tbl_3mo <- tbl_regression(lm_ipw_dr, exponentiate = FALSE, label = list(support_high_F ~ "High Support"), intercept=T) %>%
+  add_significance_stars()
+tbl_12mo <- tbl_regression(lm_ipw_total_Y, exponentiate = FALSE, label = list(support_high_Y ~ "High Support"), intercept=T) %>%
+  add_significance_stars()
+
+tbl_3mo$table_body$variable[tbl_3mo$table_body$variable == "support_high_F"] <- 'support_high'
+tbl_12mo$table_body$variable[tbl_12mo$table_body$variable == "support_high_Y"] <- 'support_high'
+
+tbl_combined <- tbl_merge(
+  list(tbl_3mo, tbl_12mo),
+  tab_spanner = c("**3-Month Outcome**", "**12-Month Outcome**")
+)
+tbl_combined %>%
+  # as_flex_table() %>%
+  as_gt() %>%
+  gt::opt_row_striping()
+
+tbl_combined %>%
+  as_kable_extra(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Survey-weighted linear regression estimating the effect of high support on FIM total score change at 3 months and 1 year.",
+    label = 'tab:ipw_fim_total_combined'
+  ) %>% 
+  add_header_above(
+    c(" " = 1, 
+      "\\cellcolor{gray!20}\\textbf{3-Month Outcome}" = 2, 
+      "\\cellcolor{gray!20}\\textbf{12-Month Outcome}" = 2),
+    escape = FALSE
+  ) %>%
+  # column_spec(1, border_left = TRUE) %>%
+  # column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# One-hot encode categorical vars
+X <- model.matrix(~ AGE_CAT + GENDER + RACE + SCHOOL + MARITAL + FIMTOTAL_A + LOS +
+                    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+                    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+                    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+                    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+                  data = df_F)[, -1]  # Drop intercept
+
+W <- as.numeric(as.character(df_F$support_high_F))
+Y <- df_F$FIM_TOTAL_CHANGE_F
+
+rf_Y <- regression_forest(X, Y, seed=123)
+rf_W <- regression_forest(X, W, seed=123)
+
+cf_model_F <- causal_forest(
+  X = X,
+  Y = Y,
+  W = W,
+  Y.hat = predict(rf_Y)$predictions,
+  W.hat = predict(rf_W)$predictions,
+  seed=123
+)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+average_treatment_effect(cf_model_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# Calibrate causal forest
+calib_test_F <- test_calibration(cf_model_F)
+
+# Print the results
+print(calib_test_F)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+tbl_regression(calib_test_F) %>%
+  as_kable_extra(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Calibration test results for the Causal Forest model.",
+    label = 'cf_calib_test'
+  ) %>% 
+  # column_spec(1, border_left = TRUE) %>%
+  # column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+cates_F <- predict(cf_model_F)$predictions
+
+cate_p <- data.frame(CATE=cates_F) %>%
+  ggplot(aes(x=CATE)) +
+  geom_histogram(fill='steelblue', color='black') +
+  labs(
+    # title = 'Distribution of  Estimated CATEs (3 months)',
+    x = 'Estimated Treatment Effect',
+    y = 'Count'
+  ) +
+  theme_classic() +
+  theme_custom(axis_text_size = 20, axis_title_size = 22)
+
+ggsave('images/cate_histogram_F.png', plot=cate_p, width=6, height=4, dpi=300)
+print(cate_p)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+vimp_F <- variable_importance(cf_model_F)
+
+# Pair with variable names
+importance_df_F <- data.frame(
+  Variable = colnames(X),
+  Importance = vimp_F
+) %>%
+  arrange(desc(Importance))
+
+# Show top 10
+head(importance_df_F, 10)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+vimp_p <- ggplot(importance_df_F[1:10, ], aes(x = reorder(Variable, Importance), y = Importance)) +
+  geom_col(fill='steelblue', color='black') +
+  coord_flip() +
+  labs(
+    # title = "Top Variables Driving Heterogeneity (3 months)", 
+    x = "Variable", 
+    y = "Importance Score"
+    ) +
+  theme_classic() +
+  theme_custom(axis_text_size = 16, axis_title_size = 22)
+
+ggsave('images/vimp_F.png', plot=vimp_p, width=8, height=4, dpi=300)
+print(vimp_p)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_F$cate <- cates_F
+# Create quartiles based on baseline FIMTOTAL_A
+df_F$fim_quartile <- cut(
+  df_F$FIMTOTAL_A,
+  breaks = quantile(df_F$FIMTOTAL_A, probs = seq(0, 1, 0.25), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)")
+)
+
+df_F %>%
+  group_by(fim_quartile) %>%
+  summarise(
+    mean_cate = mean(cate, na.rm = TRUE),
+    sd_cate = sd(cate, na.rm = TRUE),
+    n = n()
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_F %>%
+  group_by(fim_quartile) %>%
+  summarise(
+    mean_cate = mean(cate, na.rm = TRUE),
+    sd_cate = sd(cate, na.rm = TRUE),
+    n = n()
+  ) %>%
+  kable(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Mean estimated (CATE) and standard deviation by baseline FIM quartile.",
+    label = 'cate_by_fim_table_F'
+  ) %>% 
+  # column_spec(1, border_left = TRUE) %>%
+  # column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+kruskal.test(cate ~ fim_quartile, data = df_Y) %>% 
+  tidy() %>%
+  mutate(p.value = format.pval(p.value, digits = 3, eps = 1e-4)) %>%
+  kable(format = "latex", booktabs = F, longtable=T,
+        caption = "Kruskal–Wallis test comparing CATE distributions across baseline FIM quartiles.",
+        col.names = c("Test", "Statistic", "Degrees of Freedom", "p-value")) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%
+  kable_styling(latex_options = c("hold_position")) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+cate_boxplot_p <- ggplot(df_F, aes(x = fim_quartile, y = cate)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    # title = "Estimated Treatment Effect by Baseline Function (FIMTOTAL_A Quartiles)",
+    x = "Baseline Function Quartile",
+    y = "Estimated Treatment Effect (CATE)"
+  ) +
+  theme_classic() +
+  theme_custom(axis_text_size = 20, axis_title_size = 22)
+ggsave('images/cate_boxplot_by_FIMTOTAL_A_F.png', plot=cate_boxplot_p, width=6, height=4, dpi=300)
+print(cate_boxplot_p)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_F$los_quartile <- cut(
+  df_F$LOS,
+  breaks = quantile(df_F$LOS, probs = seq(0, 1, 0.25), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)")
+)
+
+df_F %>%
+  group_by(los_quartile) %>%
+  summarise(
+    mean_cate = mean(cate, na.rm = TRUE),
+    sd_cate = sd(cate, na.rm = TRUE),
+    n = n()
+  )
+
+## -------------------------------------------------------------------------------------------------------------------------------
+ggplot(df_F, aes(x = los_quartile, y = cate)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Estimated Treatment Effect by Length of Stay (LOS Quartiles)",
+    x = "LOS Quartile",
+    y = "Estimated Treatment Effect (CATE)"
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# One-hot encode categorical vars
+X <- model.matrix(~ AGE_CAT + GENDER + RACE + SCHOOL + MARITAL + FIMTOTAL_A + LOS +
+                    COMORB_DIABETES + COMORB_HTN + COMORB_HEART +
+                    COMORB_OBESITY + COMORB_CANCER + COMORB_MENTAL +
+                    COMORB_RESPIRATORY + COMORB_ARTHRITIS + COMORB_KIDNEY +
+                    COMORB_OTHER_CIRC + COMORB_FRACTURES + COMORBIDSUM,
+                  data = df_Y)[, -1]  # Drop intercept
+
+W <- as.numeric(as.character(df_Y$support_high_Y))
+Y <- df_Y$FIM_TOTAL_CHANGE_Y
+
+rf_Y <- regression_forest(X, Y, seed=123)
+rf_W <- regression_forest(X, W, seed=123)
+
+cf_model_Y <- causal_forest(
+  X = X,
+  Y = Y,
+  W = W,
+  Y.hat = predict(rf_Y)$predictions,
+  W.hat = predict(rf_W)$predictions,
+  seed=123
+)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+average_treatment_effect(cf_model_Y)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+# Calibrate causal forest
+calib_test_Y <- test_calibration(cf_model_Y)
+
+# Print the results
+print(calib_test_Y)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+tbl_regression(calib_test_F) %>%
+  as_kable_extra(
+    format = "latex",
+    longtable = TRUE,
+    booktabs = FALSE,  # Set to FALSE to allow borders
+    caption = "Calibration test results for the Causal Forest model.",
+    label = 'cf_calib_test'
+  ) %>% 
+  # column_spec(1, border_left = TRUE) %>%
+  # column_spec(4, border_right = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "gray!10") %>%  # Bold header with dark gray background
+  # row_spec(1:10, background = "gray90") %>%   # Shade all data rows light gray
+  # str_replace_all('gray90', 'gray!90') %>%
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 8,         # Smaller text
+    position = "center"    # Center the table
+  ) %>%
+  write_clip()
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+cates_Y <- predict(cf_model_Y)$predictions
+
+cate_p <- data.frame(CATE=cates_Y) %>%
+  ggplot(aes(x=CATE)) +
+  geom_histogram(fill='steelblue', color='black') +
+  labs(
+    # title = 'Distribution of  Estimated CATEs (1 year)',
+    x = 'Estimated Treatment Effect',
+    y = 'Count'
+  ) +
+  theme_classic() +
+  theme_custom(axis_text_size = 20, axis_title_size = 22)
+
+ggsave('images/cate_histogram_Y.png', plot=cate_p, width=6, height=4, dpi=300)
+print(cate_p)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+vimp_Y <- variable_importance(cf_model_Y)
+
+# Pair with variable names
+importance_df_Y <- data.frame(
+  Variable = colnames(X),
+  Importance = vimp_Y
+) %>%
+  arrange(desc(Importance))
+
+# Show top 10
+head(importance_df_Y, 10)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+vimp_p <- ggplot(importance_df_Y[1:10, ], aes(x = reorder(Variable, Importance), y = Importance)) +
+  geom_col(fill='steelblue', color='black') +
+  coord_flip() +
+  labs(title = "Top Variables Driving Heterogeneity (1 year)", x = "Variable", y = "Importance Score")
+
+ggsave('images/vimp_Y.png', plot=vimp_p, width=6, height=4, dpi=300)
+print(vimp_p)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_Y$cate <- cates_Y
+# Create quartiles based on baseline FIMTOTAL_A
+df_Y$fim_quartile <- cut(
+  df_Y$FIMTOTAL_A,
+  breaks = quantile(df_Y$FIMTOTAL_A, probs = seq(0, 1, 0.25), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)")
+)
+
+df_Y %>%
+  group_by(fim_quartile) %>%
+  summarise(
+    mean_cate = mean(cate, na.rm = TRUE),
+    sd_cate = sd(cate, na.rm = TRUE),
+    n = n()
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+ggplot(df_Y, aes(x = fim_quartile, y = cate)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Estimated Treatment Effect by Baseline Function (FIMTOTAL_A Quartiles)",
+    x = "Baseline Function Quartile",
+    y = "Estimated Treatment Effect (CATE)"
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+df_Y$los_quartile <- cut(
+  df_Y$LOS,
+  breaks = quantile(df_Y$LOS, probs = seq(0, 1, 0.25), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)")
+)
+
+df_Y %>%
+  group_by(los_quartile) %>%
+  summarise(
+    mean_cate = mean(cate, na.rm = TRUE),
+    sd_cate = sd(cate, na.rm = TRUE),
+    n = n()
+  )
+
+
+## -------------------------------------------------------------------------------------------------------------------------------
+ggplot(df_Y, aes(x = los_quartile, y = cate)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Estimated Treatment Effect by Length of Stay (LOS Quartiles)",
+    x = "LOS Quartile",
+    y = "Estimated Treatment Effect (CATE)"
+  )
+
+\end{lstlisting}
