@@ -1,0 +1,80 @@
+---
+title: "Clustering"
+author: "Sarah Hashmi"
+date: "2024-05-13"
+output: html_document
+---
+
+```{r}
+# Load necessary libraries
+library(readr)  # for reading data
+library(stats)  # for clustering
+library(ggplot2)  # for visualization
+
+# Load the data
+data <- read_csv("train_imputed.csv")
+
+# Select relevant columns and preprocess
+data_for_clustering <- data[, c("patient_age", "bmi", "income_household_median", "metastatic_diagnosis_period")]
+data_for_clustering <- na.omit(data_for_clustering)  # Removing NA values
+data_for_clustering <- scale(data_for_clustering)  # Scaling data
+
+# Perform k-means clustering
+set.seed(123)
+kmeans_result <- kmeans(data_for_clustering, centers=3, nstart=20)
+
+# Analyze clusters
+data$cluster <- kmeans_result$cluster
+aggregate(data_for_clustering, by=list(data$cluster), FUN=mean)
+
+# Visualizing the clusters
+ggplot(data, aes(x=bmi, y=metastatic_diagnosis_period, color=factor(cluster))) +
+  geom_point(alpha=0.5) +
+  labs(color="Cluster") +
+  theme_minimal() +
+  ggtitle("Clusters by BMI and Metastatic Diagnosis Period")
+
+# Calculating correlation matrix
+correlation_matrix <- cor(data[, c("patient_age", "bmi", "income_household_median", "metastatic_diagnosis_period")], use="complete.obs")
+
+# Visualizing the correlation matrix
+library(corrplot)
+corrplot(correlation_matrix, method="circle", type="upper", order="hclust",
+         tl.cex=0.8, tl.col="black", cl.cex=0.8, addCoef.col="black")
+
+```
+```{r}
+# Load necessary libraries
+library(readr)   # for reading data
+library(corrplot)  # for correlation plot
+
+# Load the data
+data <- read_csv("train_imputed.csv")
+
+# Select relevant columns
+# Include race variables and other relevant continuous variables
+data_subset <- data[, c("patient_age", "bmi", "income_household_median", 
+                        "race_white", "race_black", "race_asian", 
+                        "race_native", "race_pacific", "race_other", "race_multiple")]
+
+# Convert race data from percentages or existence checks into binary (0 or 1) if necessary
+# Assuming the data is already in a binary format (presence or absence of a race category)
+# If not, you would need to convert any percentage or count data into binary form
+
+# Handling missing values
+data_subset <- na.omit(data_subset)
+
+# Calculating Spearman's correlation matrix
+correlation_matrix <- cor(data_subset, method = "spearman")
+
+# Visualizing the correlation matrix
+corrplot(correlation_matrix, method = "circle", type = "upper", order = "hclust",
+         tl.pos = "lt", tl.cex = 0.7, tl.col = "black",  # Further reduced label size
+         addCoef.col = "black",  # Show correlation coefficients
+         cl.cex = 0.09,  # Further reduced size of the coefficients for better clarity
+         diag = FALSE,  # Do not show diagonal
+         color = c("red", "white", "blue"),  # Color gradient: negative (red), neutral (white), positive (blue)
+         is.corr = TRUE)  # Indicate that the matrix is a correlation matrix
+
+
+```

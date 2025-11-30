@@ -1,0 +1,5 @@
+,patient_race,payer_type,patient_state,Region,Division,patient_gender,breast_cancer_diagnosis_code,breast_cancer_diagnosis_desc,metastatic_cancer_diagnosis_code,metastatic_first_novel_treatment
+count,6516,11408,13173,13173,13173,13173,13173,13173,13173,11
+unique,5,3,44,4,8,1,47,47,43,2
+top,White,COMMERCIAL,CA,South,East North Central,F,1749,"Malignant neoplasm of breast (female), unspecified",C773,OLAPARIB
+freq,3565,6297,2377,3960,3010,13173,1947,1947,7308,6

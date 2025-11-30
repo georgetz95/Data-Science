@@ -1,0 +1,11 @@
+patient_id,patient_race,payer_type,patient_state,patient_zip3,Region,Division,patient_age,patient_gender,bmi
+955976,Hispanic,MEDICAID,CA,900,West,Pacific,44,F,
+904767,,MEDICAID,NY,117,Northeast,Middle Atlantic,75,F,
+168299,White,,MI,482,Midwest,East North Central,52,F,
+671092,White,COMMERCIAL,TX,773,South,West South Central,56,F,
+958657,Black,MEDICAID,GA,303,South,South Atlantic,83,F,
+566534,,MEDICAID,NY,121,Northeast,Middle Atlantic,50,F,23.13
+471521,Hispanic,MEDICAID,CA,922,West,Pacific,91,F,
+246064,,COMMERCIAL,TX,770,South,West South Central,62,F,
+162323,White,MEDICARE ADVANTAGE,SC,296,South,South Atlantic,83,F,
+514868,Black,MEDICAID,GA,314,South,South Atlantic,58,F,20.8
