@@ -1,6 +1,5 @@
 # Restaurant Consumer Segmentation and Concept Scoring
 
-**Application target:** Ipsos Data Analyst, Global Modeling Unit  
 **Project type:** Market research analytics, consumer segmentation, concept scorecarding  
 **Primary language:** R
 
@@ -8,7 +7,6 @@
 
 This project analyzes the UCI Restaurant and Consumer Data set as a market-research style case study. The goal is to show how consumer profile data, stated preferences, venue attributes, and ratings can be joined into a practical workflow for segmentation, multivariate driver analysis, and concept screening.
 
-The project was built to align with analytics work described in the Ipsos Global Modeling Unit posting: cleaning survey-like data, conducting multivariate analysis, building client-ready tables and figures, and automating PowerPoint-style outputs from R.
 
 ## Main Question
 
@@ -39,13 +37,10 @@ UCI describes the data as coming from a recommender-system prototype. The raw fi
 ## Key Outputs
 
 - `restaurant_consumer_segmentation_report.Rmd`: main project paper.
-- `restaurant_consumer_segmentation_report.html`: rendered report.
 - `scripts/market_research_analysis.R`: reproducible R pipeline.
-- `scripts/render_report.R`: renders the R Markdown report to HTML.
 - `latex/`: standalone LaTeX source for building the PDF version of the paper.
 - `figures/`: final plots used in the report.
 - `outputs/client_tables/`: CSV scorecards and model tables.
-- `outputs/ipsos_style_summary_deck.pptx`: automated PowerPoint summary deck.
 - `data/processed/`: cleaned modeling data and segment assignments.
 
 ## Selected Findings
