@@ -38,7 +38,6 @@ UCI describes the data as coming from a recommender-system prototype. The raw fi
 
 - `restaurant_consumer_segmentation_report.Rmd`: main project paper.
 - `scripts/market_research_analysis.R`: reproducible R pipeline.
-- `latex/`: standalone LaTeX source for building the PDF version of the paper.
 - `figures/`: final plots used in the report.
 - `outputs/client_tables/`: CSV scorecards and model tables.
 - `data/processed/`: cleaned modeling data and segment assignments.
@@ -55,24 +54,3 @@ Observed concept scorecards suggest familiar restaurant concepts with stronger s
 
 The logistic model is deliberately more cautious. Several venue effects have confidence intervals that cross 1, which means the scorecards should be used to prioritize follow-up testing rather than make causal claims.
 
-## How to Reproduce
-
-From the project root:
-
-```r
-source("scripts/market_research_analysis.R")
-source("scripts/render_report.R")
-```
-
-The normal workflow uses R Markdown for HTML and the `latex/` folder for the PDF source. Building the LaTeX PDF requires TinyTeX, TeX Live, MiKTeX, or another LaTeX distribution.
-
-## Portfolio Relevance
-
-This project is intended to demonstrate:
-
-- R-based survey and consumer data analysis
-- segmentation with mixed data types
-- multivariate modeling for satisfaction drivers
-- market-research concept scoring
-- client-facing communication through charts, tables, and a deck
-- reproducible analysis suitable for GitHub
