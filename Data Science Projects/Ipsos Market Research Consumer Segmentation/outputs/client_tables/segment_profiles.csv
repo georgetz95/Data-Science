@@ -1,0 +1,4 @@
+segment,customers,ratings,median_age,avg_rating,high_rating_share,low_budget_share,medium_or_high_budget_share,student_share,professional_share,car_owner_share,social_drinker_share,top_budget,top_activity,top_interest,top_personality,segment_label
+1,63,561,23,1.13903743315508,0.39572192513368987,0.25,0.6666666666666666,0.7931034482758621,0.15517241379310345,0.12280701754385964,0.36507936507936506,medium,student,variety,hard-worker,S1: Quieter mixed students
+2,32,264,23,1.246212121212121,0.4583333333333333,0.28125,0.71875,0.8387096774193549,0.16129032258064516,0.8064516129032258,0.90625,medium,student,variety,hard-worker,S2: Mobile social students
+3,43,336,23,1.2648809523809523,0.4255952380952381,0.27906976744186046,0.7209302325581395,0.9761904761904762,0.023809523809523808,0.06976744186046512,0.813953488372093,medium,student,technology,thrifty-protector,S3: Tech-focused students

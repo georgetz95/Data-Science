@@ -1,0 +1,11 @@
+concept_family,n_ratings,avg_rating,high_rating_share
+High | price | Full bar | Familiar,44,1.2954545454545454,0.5227272727272727
+High | price | Wine or beer | Familiar,121,1.3140495867768596,0.49586776859504134
+Medium | price | Wine or beer | Familiar,142,1.2605633802816902,0.4788732394366197
+Medium | price | No alcohol | Familiar,387,1.248062015503876,0.4444444444444444
+Low | price | Wine or beer | Quiet,17,1.2352941176470589,0.4117647058823529
+High | price | No alcohol | Familiar,69,1.1304347826086956,0.4057971014492754
+Medium | price | Full bar | Familiar,32,1.1875,0.375
+Low | price | No alcohol | Familiar,267,1.0711610486891385,0.3295880149812734
+Low | price | No alcohol | Quiet,27,1.0740740740740742,0.2962962962962963
+Low | price | Wine or beer | Familiar,35,0.9714285714285714,0.2857142857142857

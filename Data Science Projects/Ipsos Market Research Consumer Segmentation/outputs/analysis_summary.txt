@@ -1,0 +1,5 @@
+Ipsos-style market research project summary
+Source: UCI Restaurant and Consumer Data, 1161 ratings, 138 consumers, 130 restaurants.
+Selected segmentation solution: 3 segments, based on PAM clustering over Gower distance.
+Model rows used for driver analysis: 1079.
+Top overall observed concept: High | price | Full bar | Familiar (52% high satisfaction, n=44).

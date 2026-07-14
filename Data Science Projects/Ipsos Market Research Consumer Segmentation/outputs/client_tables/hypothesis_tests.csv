@@ -1,0 +1,4 @@
+hypothesis,statistical_test,statistic,df,p_value
+H1: High satisfaction differs across profile-derived consumer segments,Pearson chi-square test of high rating by segment,2.9865840831282013,2,0.22463193929328748
+H2: Familiar concepts with alcohol service have higher high-satisfaction rates than low-price no-alcohol concepts,Pearson chi-square test comparing selected concept families,12.104997691450462,1,5.028685896334061e-4
+H3: Venue attributes add explanatory value after consumer profile and fit controls,Likelihood-ratio test comparing nested logistic models,13.024748314971703,5,0.02314795011334307
