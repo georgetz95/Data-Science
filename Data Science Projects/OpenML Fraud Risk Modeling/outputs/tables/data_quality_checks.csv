@@ -1,0 +1,8 @@
+check,value
+rows,284807
+columns,36
+fraud_cases,492
+fraud_rate,0.001727485630620034
+missing_cells,0
+duplicate_rows,1081
+selected_model,balanced_random_forest

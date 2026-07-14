@@ -1,0 +1,10 @@
+{
+  "source": "OpenML creditcard dataset, data_id=1597",
+  "rows": 284807,
+  "fraud_cases": 492,
+  "fraud_rate": 0.001727485630620034,
+  "selected_model": "balanced_random_forest",
+  "feature_count": 34,
+  "threshold_review_rate": 0.01,
+  "threshold": 0.030876433047342288
+}

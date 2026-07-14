@@ -1,0 +1,2 @@
+selected_model,review_rate_target,validation_threshold,test_alerts,test_transactions,test_alert_rate,true_positives,false_positives,false_negatives,true_negatives,precision,recall,fraud_rate_in_alerts
+balanced_random_forest,0.01,0.030876433047342288,395,42722,0.009245821824820935,44,351,8,42319,0.11139240506329114,0.8461538461538461,0.11139240506329114

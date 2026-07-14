@@ -1,0 +1,7 @@
+SentiLink-style fraud risk modeling project summary
+Dataset: OpenML creditcard, 284,807 transactions and 492 fraud cases.
+Fraud prevalence: 0.173%.
+Selected model: balanced_random_forest.
+Test average precision: 0.7780.
+At a validation-tuned 1% review budget, test recall is 0.846 and precision is 0.111.
+SQLite scoring database: fraud_risk_scoring.sqlite.
