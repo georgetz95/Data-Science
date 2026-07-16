@@ -1,0 +1,20 @@
+{
+  "analytic_records": 237405,
+  "records_2024": 119504,
+  "states": "IN, IL",
+  "hcpcs_codes": "99203, 99204, 99213, 99214, 99215, 99232, 99285, 93000, 97110",
+  "providers_2024": 51101,
+  "estimated_medicare_payment_2024": 1182224267.1000469,
+  "estimated_medicare_payment_growth_2023_2024": -0.020181095973625163,
+  "top_decile_line_share": 0.10000502075244343,
+  "top_decile_payment_share": 0.30734013532080234,
+  "top_decile_service_share": 0.3167867396213402,
+  "top_decile_high_charge_ratio_flags": 2368,
+  "top_decile_high_service_intensity_flags": 7249,
+  "top_decile_rapid_growth_flags": 2420,
+  "top_provider_state": "IN",
+  "top_provider_type": "Internal Medicine",
+  "top_provider_scored_lines": 7,
+  "top_provider_top_decile_lines": 5,
+  "downloaded_rows": 237405
+}

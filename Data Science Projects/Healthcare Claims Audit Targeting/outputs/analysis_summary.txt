@@ -1,0 +1,10 @@
+Analytic records: 237,405
+2024 providers: 51,101
+2024 estimated Medicare payment: $1,182.22M
+Payment growth in selected cohort, 2023-2024: -2.0%
+Top audit-priority decile line share: 10.0%
+Top audit-priority decile payment share: 30.7%
+Top audit-priority decile service share: 31.7%
+Top decile high charge-ratio flags: 2,368
+Top decile high service-intensity flags: 7,249
+Top decile rapid growth flags: 2,420

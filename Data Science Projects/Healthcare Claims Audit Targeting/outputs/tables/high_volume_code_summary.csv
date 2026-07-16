@@ -1,0 +1,31 @@
+year,hcpcs_code,hcpcs_description,place_of_service,line_count,provider_count,total_services,estimated_medicare_payment,estimated_submitted_charge
+2024,99214,"Established patient office or other outpatient visit with moderate level of decision making, if using time, 30 minutes or more",O,26961,26961,5442307.0,449503302.3500464,1339080663.590098
+2023,99214,"Established patient office or other outpatient visit, 30-39 minutes",O,26207,26207,5360365.8,445689818.07996887,1255728818.9301357
+2023,99213,"Established patient office or other outpatient visit, 20-29 minutes",O,25882,25882,3803521.1,221301309.98999047,613959055.9699203
+2024,99213,"Established patient office or other outpatient visit with low level od decision making, if using time, 20 minutes or more",O,25690,25690,3621875.0,209141636.33001253,611674448.7799338
+2023,99232,"Subsequent hospital care with moderate levelof medical decision making, if using time, at least 35 minutes",F,11919,11919,2374198.0,145496562.2000153,422151732.6400268
+2024,99232,"Subsequent hospital care with moderate levelof medical decision making, if using time, at least 35 minutes",F,11946,11946,2226211.0,133208426.48998538,411150533.00991523
+2023,99285,Emergency department visit with high level of medical decision making,F,4001,4001,627427.0,86520915.09996283,688952715.9501766
+2024,99285,Emergency department visit with high level of medical decision making,F,4088,4088,633701.0,83646042.08993815,714236791.5996149
+2024,99215,"Established patient office or other outpatient visit with high level of medical decision making, if using time, 40 minutes or more",O,7845,7845,574148.0,71914891.63003373,201583903.9900228
+2023,97110,"Therapy procedure using exercise to develop strength, endurance, range of motion, and flexibility, each 15 minutes",O,5574,5574,3923565.0,68462204.65001535,296614296.7599918
+2023,99215,"Established patient office or other outpatient visit, 40-54 minutes",O,7414,7414,536592.0,67066096.06005936,179645542.21000198
+2024,99204,"New patient office or other outpatient visit with moderate level of medical decision making, if using time, 45 minutes or more",O,12144,12144,582524.0,64915422.95003082,213294461.4299899
+2023,99204,"New patient office or other outpatient visit, 45-59 minutes",O,11842,11842,569081.0,64109521.17003535,203255539.15001932
+2024,97110,"Therapy procedure using exercise to develop strength, endurance, range of motion, and flexibility, each 15 minutes",O,5683,5683,3768139.0,64001241.530006886,283846474.86001766
+2024,99214,"Established patient office or other outpatient visit with moderate level of decision making, if using time, 30 minutes or more",F,4670,4670,526208.0,35172024.800001875,134036953.83994605
+2023,99214,"Established patient office or other outpatient visit, 30-39 minutes",F,4435,4435,504999.0,34568451.370002255,122896472.63999411
+2023,99203,"New patient office or other outpatient visit, 30-44 minutes",O,8925,8925,454043.0,32489789.289995767,106072754.52999766
+2024,99203,"New patient office or other outpatient visit with low level of medical decision making, if using time, 30 minutes or more",O,8747,8747,418059.0,29118791.85999895,100578165.25998835
+2024,99215,"Established patient office or other outpatient visit with high level of medical decision making, if using time, 40 minutes or more",F,2221,2221,153395.0,16023564.639987249,58438658.64000096
+2023,99215,"Established patient office or other outpatient visit, 40-54 minutes",F,2024,2024,144326.0,15281517.740009626,52660630.45000401
+2023,99213,"Established patient office or other outpatient visit, 20-29 minutes",F,3355,3355,282908.0,12910784.730003307,46242028.16998716
+2024,99213,"Established patient office or other outpatient visit with low level od decision making, if using time, 20 minutes or more",F,3335,3335,274390.0,12272596.770002412,46672483.91998994
+2024,99204,"New patient office or other outpatient visit with moderate level of medical decision making, if using time, 45 minutes or more",F,2025,2025,73372.0,6913070.400000016,28370720.16999791
+2023,99204,"New patient office or other outpatient visit, 45-59 minutes",F,1924,1924,69359.0,6670526.569995355,25663507.78000193
+2023,93000,Routine electrocardiogram (ecg) using at least 12 leads with interpretation and report,O,3441,3441,399030.0,4031911.289998873,31164942.600004636
+2024,93000,Routine electrocardiogram (ecg) using at least 12 leads with interpretation and report,O,3203,3203,381874.0,3783252.6100005414,29937565.300000083
+2023,99203,"New patient office or other outpatient visit, 30-44 minutes",F,931,931,30595.0,1783559.919999752,7210478.279998569
+2024,99203,"New patient office or other outpatient visit with low level of medical decision making, if using time, 30 minutes or more",F,891,891,28188.0,1595108.529999899,6760069.680001751
+2024,99232,"Subsequent hospital care with moderate levelof medical decision making, if using time, at least 35 minutes",O,54,54,16922.0,1013131.560002025,2506283.59999996
+2023,99232,"Subsequent hospital care with moderate levelof medical decision making, if using time, at least 35 minutes",O,27,27,3251.0,191289.839999067,514081.43000009
