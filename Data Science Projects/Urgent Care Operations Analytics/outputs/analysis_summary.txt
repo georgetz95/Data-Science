@@ -1,0 +1,12 @@
+Analytic records: 237,405
+2024 provider-service records: 119,504
+2024 providers: 51,101
+2024 markets: 861
+2024 services: 18,721,396
+2024 estimated Medicare payment: $1,182M
+Payment growth in selected cohort, 2023-2024: -2.0%
+Top operational-priority decile record share: 10.0%
+Top operational-priority decile service share: 40.0%
+Top operational-priority decile payment share: 42.1%
+Diagnostics and procedures service share: 22.2%
+Top market: CHICAGO, IL with 1,992,025 services

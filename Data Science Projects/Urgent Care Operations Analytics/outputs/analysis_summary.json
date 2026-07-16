@@ -1,0 +1,23 @@
+{
+  "analytic_records": 237405,
+  "records_2024": 119504,
+  "states": "IL, IN",
+  "hcpcs_codes": "99203, 99204, 99213, 99214, 99215, 99232, 99285, 93000, 97110",
+  "providers_2024": 51101,
+  "markets_2024": 861,
+  "services_2024": 18721396,
+  "estimated_payment_2024": 1182224267.1,
+  "estimated_payment_growth_2023_2024": -0.0202,
+  "top_decile_record_share": 0.1,
+  "top_decile_service_share": 0.4003,
+  "top_decile_payment_share": 0.4211,
+  "top_decile_high_volume_flags": 7826,
+  "top_decile_high_intensity_flags": 4503,
+  "top_decile_rapid_growth_flags": 3901,
+  "diagnostic_service_share": 0.2217,
+  "diagnostic_payment_share": 0.0573,
+  "top_market": "CHICAGO, IL",
+  "top_market_services": 1992025,
+  "top_market_estimated_payment": 142210007.48,
+  "downloaded_rows": 237405
+}
