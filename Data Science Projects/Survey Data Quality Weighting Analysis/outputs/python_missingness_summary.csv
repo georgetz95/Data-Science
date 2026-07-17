@@ -1,0 +1,10 @@
+variable,missing_pct
+age_years,0.0
+gender,0.0
+race_ethnicity,0.0
+usual_care,0.03415300546448088
+fair_poor,0.11953551912568307
+care_visits,0.23907103825136614
+insurance_status,0.3244535519125683
+education,5.122950819672131
+poverty_ratio,14.258879781420767

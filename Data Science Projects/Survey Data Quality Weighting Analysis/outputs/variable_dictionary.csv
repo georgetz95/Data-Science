@@ -1,0 +1,16 @@
+analysis_variable,source_file,source_variable,role,notes
+seqn,DEMO_J,SEQN,Linkage key,Public respondent sequence number
+age_years,DEMO_J,RIDAGEYR,Covariate,"Age in years at screening, top-coded at 80"
+age_group,DEMO_J,RIDAGEYR,Derived covariate,"18-34, 35-49, 50-64, 65+"
+gender,DEMO_J,RIAGENDR,Covariate,"Male, Female"
+race_ethnicity,DEMO_J,RIDRETH3,Covariate,Race and Hispanic origin with Non-Hispanic Asian category
+education,DEMO_J,DMDEDUC2,Covariate,Adult education grouped into four categories
+poverty_ratio,DEMO_J,INDFMPIR,Covariate,"Family income to poverty ratio, 0 to 5"
+health_status,HUQ_J,HUQ010,Outcome source,Self-rated general health
+fair_poor,HUQ_J,HUQ010,Primary outcome,"Fair or poor versus excellent, very good, or good"
+insurance_status,HIQ_J,HIQ011,Primary exposure,Currently insured versus uninsured
+usual_care,HUQ_J,HUQ030,Primary exposure,Has one or more routine places for care versus no usual place
+care_visits,HUQ_J,HUQ051,Descriptive variable,Health care professional visits in the past 12 months
+wtint2yr,DEMO_J,WTINT2YR,Survey design,Full sample two-year interview weight
+strata,DEMO_J,SDMVSTRA,Survey design,Masked variance stratum
+psu,DEMO_J,SDMVPSU,Survey design,Masked variance PSU

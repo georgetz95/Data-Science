@@ -1,0 +1,3 @@
+term,estimate,std.error,statistic,p.value,conf.low,conf.high,odds_ratio,conf_low_or,conf_high_or
+insurance_statusUninsured,-0.1151,0.1183,-0.9728,0.3461,-0.3672,0.137,0.8913,0.6927,1.1469
+usual_careNo usual place,-0.4628,0.1265,-3.6582,0.0023,-0.7325,-0.1932,0.6295,0.4807,0.8244

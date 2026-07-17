@@ -1,0 +1,5 @@
+check,value,status
+rows_in_processed_file,5856,pass
+unique_respondent_ids,5856,pass
+positive_interview_weights,5856,pass
+valid_binary_outcome_values,"[0.0, 1.0]",pass

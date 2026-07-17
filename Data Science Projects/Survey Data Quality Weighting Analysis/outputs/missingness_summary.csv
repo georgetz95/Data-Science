@@ -1,0 +1,9 @@
+variable,missing_n,denominator,missing_pct
+fair_poor,7,5856,0.12
+insurance_status,19,5856,0.32
+usual_care,2,5856,0.03
+education,300,5856,5.12
+poverty_ratio,835,5856,14.26
+wtint2yr,0,5856,0
+strata,0,5856,0
+psu,0,5856,0

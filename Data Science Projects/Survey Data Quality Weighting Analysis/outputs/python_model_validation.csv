@@ -1,0 +1,8 @@
+metric,value
+test_rows,1383.0
+event_rate,0.2552
+roc_auc,0.7834
+average_precision,0.5418
+accuracy_at_0_50,0.692
+precision_at_0_50,0.438
+recall_at_0_50,0.7309

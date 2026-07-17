@@ -1,0 +1,10 @@
+check,value
+Rows in DEMO_J,9254
+Rows in HUQ_J,9254
+Rows in HIQ_J,9254
+Merged person-level rows,9254
+Adult rows age 18+,5856
+Adult rows with modeled outcome,5849
+Adult rows with insurance status,5837
+Adult rows with usual care status,5854
+Adult rows missing family income to poverty ratio,835
