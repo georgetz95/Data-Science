@@ -1,0 +1,5 @@
+ncessch,school_name,school_label,enrollment,frpl_share,chronic_absence_rate,suspension_instances_per_100,chronic_component,behavior_component,context_component,mtss_priority_score,priority_rank,dashboard_action
+172409005032,Maine West High School,Maine West HS,2005,0.32468827930174565,0.4374064837905237,7.231920199501247,0.8265287708809713,0.9071144130523703,0.4218224567506257,0.7697632007063219,1,Highest priority for attendance and behavior support review
+172409005030,Maine East High School,Maine East HS,1876,0.3757995735607676,0.3779317697228145,5.223880597014926,0.2850461781195207,0.16519765707044975,0.7199751026209316,0.33607740670508157,2,Review subgroup attendance patterns and tiered support capacity
+172409005031,Maine South High School,Maine South HS,2454,0.05664221678891605,0.2245313773431133,1.8744906275468622,-1.1115749490004916,-1.0723120701228201,-1.1417975593715577,-1.1058406074114033,3,Review subgroup attendance patterns and tiered support capacity
+172409005034,Ralph J Frost Academy,Ralph J Frost Academy,0,NA,NA,NA,NA,NA,NA,NA,NA,Monitor trend and maintain routine dashboard review

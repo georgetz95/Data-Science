@@ -1,0 +1,23 @@
+ncessch,race,race_label,students_chronically_absent,enrollment_crdc,school_name,school_label,chronic_absence_rate,stable_reporting_group
+172409005030,7,Two or more races,28,51,Maine East High School,Maine East HS,0.5490196078431373,TRUE
+172409005030,2,Black,46,87,Maine East High School,Maine East HS,0.5287356321839081,TRUE
+172409005030,3,Hispanic,217,462,Maine East High School,Maine East HS,0.4696969696969697,TRUE
+172409005030,1,White,245,666,Maine East High School,Maine East HS,0.36786786786786785,TRUE
+172409005030,4,Asian,172,570,Maine East High School,Maine East HS,0.3017543859649123,TRUE
+172409005030,5,American Indian/Alaska Native,1,6,Maine East High School,Maine East HS,0.16666666666666666,FALSE
+172409005031,6,Native Hawaiian/Pacific Islander,1,3,Maine South High School,Maine South HS,0.3333333333333333,FALSE
+172409005031,3,Hispanic,79,261,Maine South High School,Maine South HS,0.30268199233716475,TRUE
+172409005031,7,Two or more races,16,56,Maine South High School,Maine South HS,0.2857142857142857,TRUE
+172409005031,2,Black,3,13,Maine South High School,Maine South HS,0.23076923076923078,FALSE
+172409005031,1,White,433,1983,Maine South High School,Maine South HS,0.2183560262228946,TRUE
+172409005031,4,Asian,19,107,Maine South High School,Maine South HS,0.17757009345794392,TRUE
+172409005032,3,Hispanic,454,865,Maine West High School,Maine West HS,0.5248554913294797,TRUE
+172409005032,2,Black,32,61,Maine West High School,Maine West HS,0.5245901639344263,TRUE
+172409005032,1,White,306,757,Maine West High School,Maine West HS,0.404227212681638,TRUE
+172409005032,4,Asian,71,197,Maine West High School,Maine West HS,0.3604060913705584,TRUE
+172409005032,7,Two or more races,13,48,Maine West High School,Maine West HS,0.2708333333333333,TRUE
+172409005032,5,American Indian/Alaska Native,1,4,Maine West High School,Maine West HS,0.25,FALSE
+172409005034,3,Hispanic,10,4,Ralph J Frost Academy,Ralph J Frost Academy,2.5,FALSE
+172409005034,1,White,13,11,Ralph J Frost Academy,Ralph J Frost Academy,1.1818181818181819,FALSE
+172409005034,7,Two or more races,1,1,Ralph J Frost Academy,Ralph J Frost Academy,1,FALSE
+172409005034,2,Black,1,1,Ralph J Frost Academy,Ralph J Frost Academy,1,FALSE

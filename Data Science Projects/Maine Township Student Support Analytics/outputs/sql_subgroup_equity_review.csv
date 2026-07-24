@@ -1,0 +1,15 @@
+school_name,race_label,enrollment_crdc,students_chronically_absent,chronic_absence_rate,stable_reporting_group
+Maine East High School,Two or more races,51,28,0.5490196078431373,1
+Maine East High School,Black,87,46,0.5287356321839081,1
+Maine East High School,Hispanic,462,217,0.4696969696969697,1
+Maine East High School,White,666,245,0.3678678678678678,1
+Maine East High School,Asian,570,172,0.3017543859649123,1
+Maine South High School,Hispanic,261,79,0.3026819923371647,1
+Maine South High School,Two or more races,56,16,0.2857142857142857,1
+Maine South High School,White,1983,433,0.2183560262228946,1
+Maine South High School,Asian,107,19,0.1775700934579439,1
+Maine West High School,Hispanic,865,454,0.5248554913294797,1
+Maine West High School,Black,61,32,0.5245901639344263,1
+Maine West High School,White,757,306,0.404227212681638,1
+Maine West High School,Asian,197,71,0.3604060913705584,1
+Maine West High School,Two or more races,48,13,0.2708333333333333,1

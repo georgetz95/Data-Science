@@ -1,0 +1,9 @@
+crdc_id,year,ncessch,leaid,fips,disability,suspensions_instances_preschool,suspensions_instances,corpinstances_preschool,corpinstances,school_name,school_label,enrollment,suspension_instances_per_100
+172409005030,2020,172409005030,1724090,17,99,-2,6,-2,-2,Maine East High School,Maine East HS,1887,0.3179650238473768
+172409005031,2020,172409005031,1724090,17,99,-2,23,-2,-2,Maine South High School,Maine South HS,2415,0.9523809523809523
+172409005032,2020,172409005032,1724090,17,99,-2,2,-2,-2,Maine West High School,Maine West HS,2026,0.09871668311944719
+172409005034,2020,172409005034,1724090,17,99,-2,2,-2,-2,Ralph J Frost Academy,Ralph J Frost Academy,NA,NA
+172409005030,2021,172409005030,1724090,17,99,-2,98,-2,-2,Maine East High School,Maine East HS,1876,5.223880597014926
+172409005031,2021,172409005031,1724090,17,99,-2,46,-2,-2,Maine South High School,Maine South HS,2454,1.8744906275468622
+172409005032,2021,172409005032,1724090,17,99,-2,145,-2,-2,Maine West High School,Maine West HS,2005,7.231920199501247
+172409005034,2021,172409005034,1724090,17,99,-2,1,-2,-2,Ralph J Frost Academy,Ralph J Frost Academy,0,NA
